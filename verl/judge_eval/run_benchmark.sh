@@ -2,16 +2,16 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "用法: bash judge_eval/run_benchmark.sh {atbench|atbench-claw|atbench-codex|rjudge} [额外参数]" >&2
+  echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all} [额外参数]" >&2
   exit 2
 fi
 
 BENCHMARK="$1"
 shift
 case "$BENCHMARK" in
-  atbench|atbench-claw|atbench-codex|rjudge) ;;
+  serve|atbench|atbench-claw|atbench-codex|rjudge|all) ;;
   *)
-    echo "用法: bash judge_eval/run_benchmark.sh {atbench|atbench-claw|atbench-codex|rjudge} [额外参数]" >&2
+    echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all} [额外参数]" >&2
     exit 2
     ;;
 esac
@@ -22,6 +22,7 @@ VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 # ======================== 直接修改这里 ========================
 MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B"
 CUDA_VISIBLE_DEVICES="0"
+PORT="8000"
 
 TENSOR_PARALLEL_SIZE=1
 DTYPE="bfloat16"
@@ -66,8 +67,45 @@ fi
 [[ "$TRUST_REMOTE_CODE" == "1" ]] && EXTRA_ARGS+=(--trust-remote-code)
 
 export CUDA_VISIBLE_DEVICES
+BASE_URL="http://127.0.0.1:${PORT}"
 
-echo "benchmark=$BENCHMARK model=$MODEL_PATH"
+if [[ "$BENCHMARK" == "serve" ]]; then
+  echo "vLLM server on $BASE_URL"
+  echo "model=$MODEL_PATH cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
+  echo "max_model_len=$MAX_MODEL_LEN max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS"
+  echo "Leave this process running. Evaluate with: bash judge_eval/run_benchmark.sh all"
+  SERVE_ARGS=(
+    --host 127.0.0.1
+    --port "$PORT"
+    --served-model-name "$MODEL_PATH"
+    --tensor-parallel-size "$TENSOR_PARALLEL_SIZE"
+    --dtype "$DTYPE"
+    --seed "$SEED"
+    --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"
+    --max-model-len "$MAX_MODEL_LEN"
+    --max-num-seqs "$MAX_NUM_SEQS"
+  )
+  [[ -n "$MAX_NUM_BATCHED_TOKENS" ]] && SERVE_ARGS+=(--max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS")
+  if [[ "$ENABLE_CHUNKED_PREFILL" == "1" ]]; then
+    SERVE_ARGS+=(--enable-chunked-prefill)
+  else
+    SERVE_ARGS+=(--no-enable-chunked-prefill)
+  fi
+  if [[ "$ENABLE_PREFIX_CACHING" == "1" ]]; then
+    SERVE_ARGS+=(--enable-prefix-caching)
+  else
+    SERVE_ARGS+=(--no-enable-prefix-caching)
+  fi
+  [[ "$ENFORCE_EAGER" == "1" ]] && SERVE_ARGS+=(--enforce-eager)
+  [[ "$TRUST_REMOTE_CODE" == "1" ]] && SERVE_ARGS+=(--trust-remote-code)
+  [[ "$CPU_OFFLOAD_GB" != "0" ]] && SERVE_ARGS+=(--cpu-offload-gb "$CPU_OFFLOAD_GB")
+  if [[ "$SWAP_SPACE" != "0" ]]; then
+    SERVE_ARGS+=(--kv-offloading-size "$((SWAP_SPACE * TENSOR_PARALLEL_SIZE))")
+  fi
+  exec vllm serve "$MODEL_PATH" "${SERVE_ARGS[@]}" "$@"
+fi
+
+echo "benchmark=$BENCHMARK model=$MODEL_PATH server=$BASE_URL"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES tensor_parallel_size=$TENSOR_PARALLEL_SIZE"
 echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
 echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"
@@ -76,6 +114,7 @@ echo "max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS chunked_prefill=$ENABLE_CHU
 cd "$VERL_ROOT"
 exec python judge_eval/eval.py \
   --benchmark "$BENCHMARK" \
+  --base-url "$BASE_URL" \
   --model "$MODEL_PATH" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --dtype "$DTYPE" \

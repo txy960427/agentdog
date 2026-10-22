@@ -102,27 +102,25 @@ python judge_eval/eval.py --benchmark rjudge --dry-run
 
 真实推理时，脚本会用模型 tokenizer 统计 min/median/P95/P99/max token 数，并在生成前打印和写入 `run.json`。输入预算为 `MAX_MODEL_LEN - MAX_TOKENS`，同时会报告超过预算、将被截断的样本数。
 
-## 4. 分别运行四个 benchmark
+## 4. 启动常驻服务，再评测
 
-在 `verl` 根目录中，每次只执行一条：
+模型只在 `serve` 里加载一次。评测进程只渲染提示词并请求这个服务，改提示词后不用重新加载模型。服务用的显存和上下文参数仍是脚本顶部那些变量；改了 `MAX_MODEL_LEN`、`MAX_NUM_SEQS` 这类加载参数才需要重启 `serve`。
 
-```bash
-bash judge_eval/run_benchmark.sh atbench
-```
+先在一个终端留下服务：
 
 ```bash
-bash judge_eval/run_benchmark.sh atbench-claw
+bash judge_eval/run_benchmark.sh serve
 ```
+
+另一个终端评测。四个 benchmark 按 ATBench、ATBench-Claw、ATBench-Codex、R-Judge 的顺序各跑一遍，最后打印一张总表：
 
 ```bash
-bash judge_eval/run_benchmark.sh atbench-codex
+bash judge_eval/run_benchmark.sh all
 ```
 
-```bash
-bash judge_eval/run_benchmark.sh rjudge
-```
+只跑一个数据集时把 `all` 换成 `atbench`、`atbench-claw`、`atbench-codex` 或 `rjudge`。
 
-脚本按单张 RTX 4090 48GB 配好默认值：BF16、128K 上下文、整份数据一次交给 vLLM、最大并发序列 64、每轮最多调度 32768 tokens，并开启 chunked prefill。vLLM 自己显示一条总进度。直接运行即可；每次只加载一个 benchmark。
+脚本按单张 RTX 4090 48GB 配好默认值：BF16、128K 上下文、最大并发序列 64、每轮最多调度 32768 tokens，并开启 chunked prefill。客户端按并发上限分批提交，并显示一条总进度。
 
 显存不足时，直接把脚本顶部改为：
 
@@ -145,7 +143,7 @@ MAX_NUM_SEQS=64
 MODEL_PATH="/data/models/AgentDoG1.5-Qwen3.5-0.8B"
 ```
 
-修改完成后仍然使用前面的四条 benchmark 命令运行。
+修改完成后重新执行 `serve`，评测命令不用改。
 
 先取少量样本做端到端冒烟测试：
 
@@ -233,7 +231,7 @@ ENFORCE_EAGER=1
 
 ## 7. 运行记录
 
-每次调用都会新建 `judge_eval/runs/<时间戳>/`，包括：
+每次调用都会新建 `judge_eval/runs/<benchmark>/<时间戳>/`，包括：
 
 - `run.json`：命令、全部 vLLM 参数、模型和运行库版本、GPU/驱动、Git 提交、数据文件哈希、样本数、prompt 字符/token 长度与超预算数量、状态和异常；
 - `prompt.txt`：本次运行使用的完整提示词模板；

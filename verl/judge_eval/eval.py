@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Evaluate AgentDoG 1.5 coarse moderation on the four paper benchmarks."""
+"""Evaluate AgentDoG 1.5 coarse moderation on the four paper benchmarks.
+
+The model stays in a vLLM server started by ``run_benchmark.sh serve``.
+This process only renders prompts and calls ``/v1/completions``.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,8 @@ import shutil
 import subprocess
 import sys
 import traceback
+import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +31,7 @@ from prompt_builder import PromptFields, build_prompt_fields, render_prompt
 HERE = Path(__file__).resolve().parent
 VERL_ROOT = HERE.parent
 BENCHMARKS = ("atbench", "atbench-claw", "atbench-codex", "rjudge")
+BENCHMARK_CHOICES = (*BENCHMARKS, "all")
 EXPECTED_SIZE = {"atbench": 1000, "atbench-claw": 500, "atbench-codex": 500, "rjudge": 571}
 # AgentDoG 1.5 paper: Table 2 (R-Judge/ATBench) and Figure 7 (Claw/Codex).
 PAPER = {
@@ -33,9 +40,16 @@ PAPER = {
     "atbench-codex": {"accuracy": 70.2},
     "rjudge": {"accuracy": 75.7, "precision": 83.3, "recall": 67.5, "f1": 74.6},
 }
+# Backticks are optional because the prompt shows the tags in markdown code spans,
+# and the model sometimes copies those spans onto the closing tags.
+_TICKS = r"`*"
 STRICT_OUTPUT = re.compile(
-    r"\A\s*<Analysis>\s*\S[\s\S]*?</Analysis>\s*"
-    r"<Judgment>\s*(safe|unsafe)\s*</Judgment>\s*\Z",
+    rf"\A\s*{_TICKS}<Analysis>{_TICKS}\s*"
+    rf"\S[\s\S]*?"
+    rf"{_TICKS}</Analysis>{_TICKS}\s*"
+    rf"{_TICKS}<Judgment>{_TICKS}\s*"
+    rf"(safe|unsafe)\s*"
+    rf"{_TICKS}</Judgment>{_TICKS}\s*\Z",
     re.IGNORECASE,
 )
 
@@ -165,18 +179,30 @@ def length_stats(values: list[int], budget: int | None = None) -> dict[str, int]
 
 
 def results_table(scores: dict[str, dict[str, Any]]) -> str:
-    rows: list[tuple[str, str, str, str]] = []
+    groups: list[list[tuple[str, str, str, str, str]]] = []
     for benchmark in BENCHMARKS:
         if benchmark not in scores:
             continue
+        group: list[tuple[str, str, str, str, str]] = []
         for metric, paper_value in PAPER[benchmark].items():
-            rows.append((benchmark, metric, f"{paper_value:.1f}%", f"{scores[benchmark][metric]:.1f}%"))
-        rows.append((benchmark, "parse", "-", f"{scores[benchmark]['strict_parse_rate']:.1f}%"))
-    header = ("Benchmark", "Metric", "Paper", "Reproduction")
+            reproduced = scores[benchmark][metric]
+            group.append(
+                (
+                    benchmark,
+                    metric,
+                    f"{paper_value:.1f}%",
+                    f"{reproduced:.1f}%",
+                    f"{reproduced - paper_value:+.1f}",
+                )
+            )
+        group.append((benchmark, "parse", "-", f"{scores[benchmark]['strict_parse_rate']:.1f}%", "-"))
+        groups.append(group)
+    header = ("Benchmark", "Metric", "Paper", "Reproduction", "Delta")
     widths = [len(cell) for cell in header]
-    for row in rows:
-        widths = [max(width, len(cell)) for width, cell in zip(widths, row, strict=True)]
-    right = (False, False, True, True)
+    for group in groups:
+        for row in group:
+            widths = [max(width, len(cell)) for width, cell in zip(widths, row, strict=True)]
+    right = (False, False, True, True, True)
 
     def line(cells: tuple[str, ...]) -> str:
         padded = [cell.rjust(width) if align else cell.ljust(width) for cell, width, align in zip(cells, widths, right, strict=True)]
@@ -186,7 +212,12 @@ def results_table(scores: dict[str, dict[str, Any]]) -> str:
         pieces = ["-" * (width - 1) + ":" if align else "-" * width for width, align in zip(widths, right, strict=True)]
         return "| " + " | ".join(pieces) + " |"
 
-    return "\n".join([line(header), rule(), *(line(row) for row in rows)])
+    body: list[str] = []
+    for index, group in enumerate(groups):
+        if index:
+            body.append("")
+        body.extend(line(row) for row in group)
+    return "\n".join([line(header), rule(), *body])
 
 
 def package_versions() -> dict[str, str]:
@@ -237,10 +268,83 @@ def gpu_inventory() -> list[dict[str, str]]:
     ]
 
 
+def selected_benchmarks(name: str) -> tuple[str, ...]:
+    return BENCHMARKS if name == "all" else (name,)
+
+
+def server_ready(base_url: str) -> None:
+    url = base_url.rstrip("/") + "/health"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            if response.status != 200:
+                raise RuntimeError(f"vLLM health check returned {response.status}")
+    except urllib.error.URLError as error:
+        raise RuntimeError(
+            f"Cannot reach the vLLM server at {base_url}. "
+            "Start it once with: bash judge_eval/run_benchmark.sh serve"
+        ) from error
+
+
+def post_json(url: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"vLLM server returned {error.code}: {detail}") from error
+
+
+def generate_completions(
+    base_url: str,
+    model: str,
+    prompts: list[str],
+    args: argparse.Namespace,
+    prompt_budget: int,
+) -> list[dict[str, Any]]:
+    """Ask the already-loaded server for greedy completions, in scheduler-sized chunks."""
+    from tqdm import tqdm
+
+    url = base_url.rstrip("/") + "/v1/completions"
+    payload_base: dict[str, Any] = {
+        "model": model,
+        "max_tokens": args.max_tokens,
+        "temperature": 0.0,
+        "seed": args.seed,
+        "return_token_ids": True,
+        "add_special_tokens": True,
+    }
+    if args.prompt_overflow == "truncate":
+        payload_base["truncate_prompt_tokens"] = prompt_budget
+        payload_base["truncation_side"] = args.truncation_side
+    generations: list[dict[str, Any] | None] = [None] * len(prompts)
+    chunk_size = max(1, args.max_num_seqs)
+    with tqdm(total=len(prompts), desc="Processed prompts") as progress:
+        for start in range(0, len(prompts), chunk_size):
+            chunk = prompts[start : start + chunk_size]
+            body = post_json(url, payload_base | {"prompt": chunk}, timeout=7200)
+            choices = sorted(body["choices"], key=lambda choice: choice["index"])
+            if len(choices) != len(chunk):
+                raise RuntimeError(f"vLLM returned {len(choices)} completions for {len(chunk)} prompts")
+            for offset, choice in enumerate(choices):
+                generations[start + offset] = choice
+            progress.update(len(chunk))
+    return [choice for choice in generations if choice is not None]
+
+
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default="AI45Research/AgentDoG1.5-Qwen3.5-0.8b")
-    parser.add_argument("--benchmark", required=True, choices=BENCHMARKS)
+    parser.add_argument("--benchmark", required=True, choices=BENCHMARK_CHOICES)
+    parser.add_argument(
+        "--base-url",
+        default="http://127.0.0.1:8000",
+        help="OpenAI-compatible vLLM server that already has the model loaded",
+    )
     parser.add_argument("--benchmark-root", type=Path, default=VERL_ROOT / "benchmark" / "agentdog")
     parser.add_argument("--runs-dir", type=Path, default=HERE / "runs")
     parser.add_argument(
@@ -288,9 +392,10 @@ def arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = arguments()
+    names = selected_benchmarks(args.benchmark)
     started = datetime.now().astimezone()
     run_id = started.strftime("%Y%m%d_%H%M%S_%f")
-    run_dir = args.runs_dir / run_id
+    run_dir = args.runs_dir / args.benchmark / run_id
     run_dir.mkdir(parents=True)
     prompt_template = (HERE / "prompt.txt").read_text(encoding="utf-8").rstrip()
     (run_dir / "prompt.txt").write_text(prompt_template + "\n", encoding="utf-8")
@@ -314,109 +419,101 @@ def main() -> None:
     dump_json(run_dir / "run.json", run)
 
     try:
-        name = args.benchmark
-        examples, metadata = load_benchmark(name, args.benchmark_root)
-        if args.limit is not None:
-            examples = examples[: args.limit]
-        prompt_contents = [render_prompt(prompt_template, item.prompt_fields) for item in examples]
-        run["datasets"][name] = metadata | {
-            "evaluated_samples": len(examples),
-            "rendered_prompt_chars": length_stats([len(prompt) for prompt in prompt_contents]),
+        loaded = {
+            name: load_benchmark(name, args.benchmark_root) for name in names
         }
+        if args.limit is not None:
+            loaded = {
+                name: (examples[: args.limit], metadata)
+                for name, (examples, metadata) in loaded.items()
+            }
+        rendered = {
+            name: [render_prompt(prompt_template, item.prompt_fields) for item in examples]
+            for name, (examples, _metadata) in loaded.items()
+        }
+        for name, (examples, metadata) in loaded.items():
+            run["datasets"][name] = metadata | {
+                "evaluated_samples": len(examples),
+                "rendered_prompt_chars": length_stats([len(prompt) for prompt in rendered[name]]),
+            }
         dump_json(run_dir / "run.json", run)
 
         if args.dry_run:
             with (run_dir / "input_preview.jsonl").open("w", encoding="utf-8") as stream:
-                if examples:
-                    stream.write(json.dumps(asdict(examples[0]) | {"prompt": prompt_contents[0]}, ensure_ascii=False) + "\n")
+                for name, (examples, _metadata) in loaded.items():
+                    if examples:
+                        stream.write(
+                            json.dumps(
+                                asdict(examples[0]) | {"prompt": rendered[name][0]},
+                                ensure_ascii=False,
+                            )
+                            + "\n"
+                        )
             run.update({"status": "completed", "finished_at": datetime.now().astimezone().isoformat(), "dry_run": True})
             dump_json(run_dir / "run.json", run)
             print("Dry run complete:", run_dir)
-            print(f"  {name}: {len(examples)} inputs")
-            print(f"  rendered prompt chars: {run['datasets'][name]['rendered_prompt_chars']}")
+            for name in names:
+                print(f"  {name}: {len(loaded[name][0])} inputs")
+                print(f"  rendered prompt chars: {run['datasets'][name]['rendered_prompt_chars']}")
             return
 
-        from vllm import LLM, SamplingParams
+        server_ready(args.base_url)
+        from transformers import AutoTokenizer
 
-        llm_options = {
-            "model": args.model,
-            "tensor_parallel_size": args.tensor_parallel_size,
-            "dtype": args.dtype,
-            "max_model_len": args.max_model_len,
-            "max_num_seqs": args.max_num_seqs,
-            "gpu_memory_utilization": args.gpu_memory_utilization,
-            "cpu_offload_gb": args.cpu_offload_gb,
-            "enable_chunked_prefill": args.enable_chunked_prefill,
-            "enable_prefix_caching": args.enable_prefix_caching,
-            "enforce_eager": args.enforce_eager,
-            "trust_remote_code": args.trust_remote_code,
-            "seed": args.seed,
-        }
-        if args.swap_space:
-            # vLLM 0.29 replaced per-GPU swap_space with a TP-wide offload buffer.
-            llm_options["kv_offloading_size"] = args.swap_space * args.tensor_parallel_size
-        if args.max_num_batched_tokens is not None:
-            llm_options["max_num_batched_tokens"] = args.max_num_batched_tokens
-        llm = LLM(**llm_options)
-        tokenizer = llm.get_tokenizer()
-        sampling = SamplingParams(
-            temperature=0.0,
-            max_tokens=args.max_tokens,
-            seed=args.seed,
-        )
-        prompts = [
-            tokenizer.apply_chat_template(
-                [{"role": "user", "content": content}],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-            for content in prompt_contents
-        ]
-        prompt_lengths = [len(tokenizer.encode(prompt, add_special_tokens=False)) for prompt in prompts]
+        tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
         prompt_budget = args.max_model_len - args.max_tokens
-        token_stats = length_stats(prompt_lengths, prompt_budget)
-        run["datasets"][name]["chat_prompt_tokens"] = token_stats
-        dump_json(run_dir / "run.json", run)
-        print(f"Prompt token statistics for {name}: {token_stats}")
-        if token_stats["over_budget"] and args.prompt_overflow == "error":
-            raise RuntimeError(
-                f"{token_stats['over_budget']} prompts exceed the {prompt_budget}-token input budget; "
-                "increase --max-model-len or use --prompt-overflow truncate"
+        all_scores: dict[str, dict[str, Any]] = {}
+        for name in names:
+            examples = loaded[name][0]
+            prompts = [
+                tokenizer.apply_chat_template(
+                    [{"role": "user", "content": content}],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                for content in rendered[name]
+            ]
+            prompt_lengths = [len(tokenizer.encode(prompt, add_special_tokens=False)) for prompt in prompts]
+            token_stats = length_stats(prompt_lengths, prompt_budget)
+            run["datasets"][name]["chat_prompt_tokens"] = token_stats
+            dump_json(run_dir / "run.json", run)
+            print(f"Prompt token statistics for {name}: {token_stats}")
+            if token_stats["over_budget"] and args.prompt_overflow == "error":
+                raise RuntimeError(
+                    f"{name}: {token_stats['over_budget']} prompts exceed the {prompt_budget}-token input budget; "
+                    "increase --max-model-len or use --prompt-overflow truncate"
+                )
+            print(
+                f"Submitting {len(prompts)} {name} prompts to {args.base_url}; "
+                f"chunks of {args.max_num_seqs}"
             )
-
-        generate_options: dict[str, Any] = {"use_tqdm": True}
-        if args.prompt_overflow == "truncate":
-            generate_options["tokenization_kwargs"] = {
-                "truncate_prompt_tokens": prompt_budget,
-                "truncation_side": args.truncation_side,
-            }
-
-        predictions: list[dict[str, Any]] = []
-        output_path = run_dir / f"{name}.jsonl"
-        print(f"Submitting {len(prompts)} prompts; vLLM schedules up to {args.max_num_seqs} at once")
-        outputs = llm.generate(prompts, sampling, **generate_options)
-        with output_path.open("w", encoding="utf-8") as stream:
-            for item, prompt, prompt_length, output in zip(examples, prompts, prompt_lengths, outputs, strict=True):
-                candidate = output.outputs[0]
-                prediction = parse_output(candidate.text)
-                row = {
-                    "benchmark": name,
-                    "id": item.id,
-                    "gold": item.gold,
-                    "prediction": prediction,
-                    "strict_parse_valid": prediction is not None,
-                    "raw_output": candidate.text,
-                    "finish_reason": candidate.finish_reason,
-                    "prompt_chars": len(prompt),
-                    "prompt_tokens_before_truncation": prompt_length,
-                    "prompt_tokens_after_truncation": len(output.prompt_token_ids or []),
-                    "prompt_truncated": prompt_length > prompt_budget,
-                    "output_tokens": len(candidate.token_ids),
-                }
-                predictions.append(row)
-                stream.write(json.dumps(row, ensure_ascii=False) + "\n")
-                stream.flush()
-        all_scores = {name: metrics(predictions)}
+            choices = generate_completions(args.base_url, args.model, prompts, args, prompt_budget)
+            predictions: list[dict[str, Any]] = []
+            with (run_dir / f"{name}.jsonl").open("w", encoding="utf-8") as stream:
+                for item, prompt, prompt_length, choice in zip(examples, prompts, prompt_lengths, choices, strict=True):
+                    text = choice.get("text") or ""
+                    prompt_token_ids = choice.get("prompt_token_ids") or []
+                    output_token_ids = choice.get("token_ids") or []
+                    prediction = parse_output(text)
+                    row = {
+                        "benchmark": name,
+                        "id": item.id,
+                        "gold": item.gold,
+                        "prediction": prediction,
+                        "strict_parse_valid": prediction is not None,
+                        "raw_output": text,
+                        "finish_reason": choice.get("finish_reason"),
+                        "prompt_chars": len(prompt),
+                        "prompt_tokens_before_truncation": prompt_length,
+                        "prompt_tokens_after_truncation": len(prompt_token_ids) or prompt_length,
+                        "prompt_truncated": prompt_length > prompt_budget,
+                        "output_tokens": len(output_token_ids),
+                    }
+                    predictions.append(row)
+                    stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    stream.flush()
+            all_scores[name] = metrics(predictions)
+            print(f"Finished {name}")
 
         table = results_table(all_scores)
         dump_json(run_dir / "metrics.json", {"paper": PAPER, "reproduction": all_scores})
