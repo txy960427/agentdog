@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "用法: bash judge_eval/run_benchmark.sh {atbench|atbench-claw|atbench-codex|rjudge} [额外参数]" >&2
+  exit 2
+fi
+
+BENCHMARK="$1"
+shift
+case "$BENCHMARK" in
+  atbench|atbench-claw|atbench-codex|rjudge) ;;
+  *)
+    echo "用法: bash judge_eval/run_benchmark.sh {atbench|atbench-claw|atbench-codex|rjudge} [额外参数]" >&2
+    exit 2
+    ;;
+esac
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+# ======================== 直接修改这里 ========================
+MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B"
+CUDA_VISIBLE_DEVICES="0"
+
+TENSOR_PARALLEL_SIZE=1
+DTYPE="bfloat16"
+SEED=42
+
+GPU_MEMORY_UTILIZATION=0.90
+MAX_MODEL_LEN=131072
+MAX_TOKENS=1024
+# 48GB 4090 holds about 3.3M KV tokens for this 0.8B model. The scheduler
+# admits fewer sequences when prompts are long; 64 is the short-prompt cap.
+MAX_NUM_SEQS=64
+MAX_NUM_BATCHED_TOKENS=32768
+
+# Qwen3.5 is a hybrid attention model. vLLM 0.29 KV offload then requires
+# prefix caching to align block sizes, and this GPU already has enough KV cache.
+SWAP_SPACE=0
+CPU_OFFLOAD_GB=0
+ENABLE_CHUNKED_PREFILL=1
+ENABLE_PREFIX_CACHING=0
+ENFORCE_EAGER=0
+TRUST_REMOTE_CODE=0
+
+PROMPT_OVERFLOW="truncate"
+TRUNCATION_SIDE="left"
+# =============================================================
+
+if [[ ! -d "$MODEL_PATH" ]]; then
+  echo "没有找到模型目录: $MODEL_PATH" >&2
+  echo "请先按照 judge_eval/README.md 下载模型，或修改脚本顶部的 MODEL_PATH。" >&2
+  exit 1
+fi
+
+EXTRA_ARGS=()
+[[ -n "$MAX_NUM_BATCHED_TOKENS" ]] && EXTRA_ARGS+=(--max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS")
+if [[ "$ENABLE_CHUNKED_PREFILL" == "1" ]]; then
+  EXTRA_ARGS+=(--enable-chunked-prefill)
+else
+  EXTRA_ARGS+=(--no-enable-chunked-prefill)
+fi
+[[ "$ENABLE_PREFIX_CACHING" == "1" ]] && EXTRA_ARGS+=(--enable-prefix-caching)
+[[ "$ENFORCE_EAGER" == "1" ]] && EXTRA_ARGS+=(--enforce-eager)
+[[ "$TRUST_REMOTE_CODE" == "1" ]] && EXTRA_ARGS+=(--trust-remote-code)
+
+export CUDA_VISIBLE_DEVICES
+
+echo "benchmark=$BENCHMARK model=$MODEL_PATH"
+echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES tensor_parallel_size=$TENSOR_PARALLEL_SIZE"
+echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
+echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"
+echo "max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS chunked_prefill=$ENABLE_CHUNKED_PREFILL dtype=$DTYPE"
+
+cd "$VERL_ROOT"
+exec python judge_eval/eval.py \
+  --benchmark "$BENCHMARK" \
+  --model "$MODEL_PATH" \
+  --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
+  --dtype "$DTYPE" \
+  --seed "$SEED" \
+  --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
+  --max-model-len "$MAX_MODEL_LEN" \
+  --max-tokens "$MAX_TOKENS" \
+  --max-num-seqs "$MAX_NUM_SEQS" \
+  --swap-space "$SWAP_SPACE" \
+  --cpu-offload-gb "$CPU_OFFLOAD_GB" \
+  --prompt-overflow "$PROMPT_OVERFLOW" \
+  --truncation-side "$TRUNCATION_SIDE" \
+  "${EXTRA_ARGS[@]}" \
+  "$@"

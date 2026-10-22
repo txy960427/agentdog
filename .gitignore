@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Model weights and checkpoints
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+*.msgpack
+*.h5
+*.ot
+*.arrow
+*.parquet
+**/checkpoints/
+**/wandb/
+**/.cache/
+
+# Local model snapshots and training data
+verl/model/
+verl/data/
+
+# Training / eval artifacts
+**/outputs/
+logs/
+*.log
+wandb/
