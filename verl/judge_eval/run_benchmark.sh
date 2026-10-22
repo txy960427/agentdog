@@ -2,16 +2,16 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all} [额外参数]" >&2
+  echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
   exit 2
 fi
 
 BENCHMARK="$1"
 shift
 case "$BENCHMARK" in
-  serve|atbench|atbench-claw|atbench-codex|rjudge|all) ;;
+  serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine) ;;
   *)
-    echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all} [额外参数]" >&2
+    echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
     exit 2
     ;;
 esac
@@ -21,6 +21,8 @@ VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 # ======================== 直接修改这里 ========================
 MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B"
+# Table 3 的细粒度模型。目录名里的 0.8B/2B/4B/8B 用来选择论文对照行。
+FINE_MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B"
 CUDA_VISIBLE_DEVICES="0"
 PORT="8000"
 
@@ -49,9 +51,25 @@ PROMPT_OVERFLOW="truncate"
 TRUNCATION_SIDE="left"
 # =============================================================
 
+TASK_ARGS=()
+RUNS_ARGS=()
+TASK_NAME="coarse"
+if [[ "$BENCHMARK" == "serve-fine" || "$BENCHMARK" == "fine" ]]; then
+  MODEL_PATH="$FINE_MODEL_PATH"
+  TASK_NAME="fine"
+fi
+if [[ "$BENCHMARK" == "serve-fine" ]]; then
+  BENCHMARK="serve"
+fi
+if [[ "$BENCHMARK" == "fine" ]]; then
+  BENCHMARK="atbench"
+  TASK_ARGS=(--task fine)
+  RUNS_ARGS=(--runs-dir "$SCRIPT_DIR/runs/fine")
+fi
+
 if [[ ! -d "$MODEL_PATH" ]]; then
   echo "没有找到模型目录: $MODEL_PATH" >&2
-  echo "请先按照 judge_eval/README.md 下载模型，或修改脚本顶部的 MODEL_PATH。" >&2
+  echo "请先按照 judge_eval/README.md 下载模型，或修改脚本顶部的模型路径。" >&2
   exit 1
 fi
 
@@ -105,7 +123,7 @@ if [[ "$BENCHMARK" == "serve" ]]; then
   exec vllm serve "$MODEL_PATH" "${SERVE_ARGS[@]}" "$@"
 fi
 
-echo "benchmark=$BENCHMARK model=$MODEL_PATH server=$BASE_URL"
+echo "benchmark=$BENCHMARK task=$TASK_NAME model=$MODEL_PATH server=$BASE_URL"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES tensor_parallel_size=$TENSOR_PARALLEL_SIZE"
 echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
 echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"
@@ -127,5 +145,7 @@ exec python judge_eval/eval.py \
   --cpu-offload-gb "$CPU_OFFLOAD_GB" \
   --prompt-overflow "$PROMPT_OVERFLOW" \
   --truncation-side "$TRUNCATION_SIDE" \
+  "${TASK_ARGS[@]}" \
+  "${RUNS_ARGS[@]}" \
   "${EXTRA_ARGS[@]}" \
   "$@"

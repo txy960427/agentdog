@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Evaluate AgentDoG 1.5 coarse moderation on the four paper benchmarks.
+"""Evaluate AgentDoG 1.5 on the paper benchmarks.
 
-The model stays in a vLLM server started by ``run_benchmark.sh serve``.
+``--task coarse`` is the 0.8B safe/unsafe moderation run.
+``--task fine`` scores the fine-grained SFT + GDPO model on ATBench unsafe trajectories.
+
+The model stays in a vLLM server started by ``run_benchmark.sh``.
 This process only renders prompts and calls ``/v1/completions``.
 """
 
@@ -25,7 +28,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from prompt_builder import PromptFields, build_prompt_fields, render_prompt
+from prompt_builder import (
+    FAILURE_MODES,
+    REAL_WORLD_HARMS,
+    RISK_SOURCES,
+    PromptFields,
+    build_prompt_fields,
+    render_prompt,
+)
 
 
 HERE = Path(__file__).resolve().parent
@@ -40,6 +50,15 @@ PAPER = {
     "atbench-codex": {"accuracy": 70.2},
     "rjudge": {"accuracy": 75.7, "precision": 83.3, "recall": 67.5, "f1": 74.6},
 }
+# Table 3. Accuracy on the 497 unsafe ATBench trajectories. Avg. is the mean of the three.
+FINE_PAPER = {
+    "0.8B": {"risk_source": 65.7, "failure_mode": 18.4, "real_world_harm": 44.9, "avg": 43.0},
+    "2B": {"risk_source": 68.0, "failure_mode": 24.0, "real_world_harm": 53.8, "avg": 48.6},
+    "4B": {"risk_source": 75.2, "failure_mode": 27.5, "real_world_harm": 62.9, "avg": 55.2},
+    "8B": {"risk_source": 72.9, "failure_mode": 24.6, "real_world_harm": 52.5, "avg": 50.0},
+}
+FINE_DIMENSIONS = ("risk_source", "failure_mode", "real_world_harm")
+UNSAFE_ATBENCH = 497
 # Backticks are optional because the prompt shows the tags in markdown code spans,
 # and the model sometimes copies those spans onto the closing tags.
 _TICKS = r"`*"
@@ -52,6 +71,15 @@ STRICT_OUTPUT = re.compile(
     rf"{_TICKS}</Judgment>{_TICKS}\s*\Z",
     re.IGNORECASE,
 )
+FINE_OUTPUT = re.compile(
+    rf"\A\s*{_TICKS}<Analysis>{_TICKS}\s*"
+    rf"\S[\s\S]*?"
+    rf"{_TICKS}</Analysis>{_TICKS}\s*"
+    rf"{_TICKS}Failure Mode:{_TICKS}\s*([^\n]+)\s*"
+    rf"{_TICKS}Risk Consequence:{_TICKS}\s*([^\n]+)\s*"
+    rf"{_TICKS}Risk Source:{_TICKS}\s*([^\n]+)\s*\Z",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -60,6 +88,7 @@ class Example:
     id: str
     gold: str
     prompt_fields: PromptFields
+    fine: dict[str, str] | None = None
 
 
 def read_json(path: Path) -> Any:
@@ -91,6 +120,11 @@ def load_benchmark(name: str, root: Path) -> tuple[list[Example], dict[str, Any]
                         str(row["id"]),
                         "unsafe" if row["label"] == 1 else "safe",
                         build_prompt_fields(name, row),
+                        {
+                            "risk_source": row["risk_source"],
+                            "failure_mode": row["failure_mode"],
+                            "real_world_harm": row["real_world_harm"],
+                        },
                     )
                 )
             elif name == "atbench-claw":
@@ -143,6 +177,84 @@ def parse_output(text: str) -> str | None:
     return match.group(1).lower() if match else None
 
 
+def _label_key(text: str) -> str:
+    """Fold display names and ATBench snake_case into one comparable key."""
+    text = text.strip().strip("`").strip().rstrip(".").strip()
+    text = re.sub(r"^\d+\.\s*", "", text)
+    text = text.replace("&", " and ")
+    text = re.sub(r"[^a-z0-9]+", " ", text.lower())
+    text = " ".join(text.split()).replace("mis information", "misinformation")
+    # ATBench writes inherent_agent_failures; the appendix name also contains "LLM".
+    tokens = [token for token in text.split() if token != "llm"]
+    return " ".join(sorted(tokens))
+
+
+def _label_index() -> dict[tuple[str, str], str]:
+    names = {
+        "failure_mode": FAILURE_MODES,
+        "real_world_harm": REAL_WORLD_HARMS,
+        "risk_source": RISK_SOURCES,
+    }
+    return {
+        (dimension, _label_key(name)): name
+        for dimension, labels in names.items()
+        for name in labels
+    }
+
+
+LABEL_INDEX = _label_index()
+
+
+def resolve_label(dimension: str, text: str) -> str | None:
+    return LABEL_INDEX.get((dimension, _label_key(text)))
+
+
+def parse_fine_output(text: str) -> dict[str, str] | None:
+    match = FINE_OUTPUT.fullmatch(text)
+    if not match:
+        return None
+    failure_mode, real_world_harm, risk_source = match.groups()
+    return {
+        "failure_mode": failure_mode.strip(),
+        "real_world_harm": real_world_harm.strip(),
+        "risk_source": risk_source.strip(),
+    }
+
+
+def fine_subset(examples: list[Example]) -> list[Example]:
+    """Keep ATBench unsafe trajectories and map their labels onto appendix names."""
+    unsafe = [item for item in examples if item.gold == "unsafe"]
+    if len(unsafe) != UNSAFE_ATBENCH:
+        raise RuntimeError(f"atbench: expected {UNSAFE_ATBENCH} unsafe samples, found {len(unsafe)}")
+    resolved: list[Example] = []
+    for item in unsafe:
+        if item.fine is None:
+            raise RuntimeError(f"{item.id} has no fine-grained labels")
+        gold = {}
+        for dimension in FINE_DIMENSIONS:
+            label = resolve_label(dimension, item.fine[dimension])
+            if label is None:
+                raise RuntimeError(f"{item.id} {dimension}={item.fine[dimension]!r} is outside the appendix taxonomy")
+            gold[dimension] = label
+        resolved.append(Example(item.benchmark, item.id, item.gold, item.prompt_fields, gold))
+    return resolved
+
+
+def fine_paper_for(model: str) -> tuple[str, dict[str, float]]:
+    name = Path(model).name.lower()
+    if "0.8" in name:
+        key = "0.8B"
+    elif re.search(r"(^|[^0-9])2b([^0-9]|$)", name):
+        key = "2B"
+    elif re.search(r"(^|[^0-9])4b([^0-9]|$)", name):
+        key = "4B"
+    elif "llama" in name or re.search(r"(^|[^0-9])8b([^0-9]|$)", name):
+        key = "8B"
+    else:
+        key = "0.8B"
+    return key, FINE_PAPER[key]
+
+
 def metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(rows)
     tp = sum(r["gold"] == "unsafe" and r["prediction"] == "unsafe" for r in rows)
@@ -178,13 +290,28 @@ def length_stats(values: list[int], budget: int | None = None) -> dict[str, int]
     return result
 
 
-def results_table(scores: dict[str, dict[str, Any]]) -> str:
+def fine_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(rows)
+    result: dict[str, Any] = {"samples": total}
+    for dimension in FINE_DIMENSIONS:
+        correct = sum(
+            (row.get("prediction") or {}).get(dimension) == row["gold_fine"][dimension]
+            for row in rows
+        )
+        result[dimension] = 100.0 * correct / total if total else 0.0
+    result["avg"] = sum(result[dimension] for dimension in FINE_DIMENSIONS) / len(FINE_DIMENSIONS)
+    valid = sum(row["strict_parse_valid"] for row in rows)
+    result["strict_parse_rate"] = 100.0 * valid / total if total else 0.0
+    return result
+
+
+def results_table(scores: dict[str, dict[str, Any]], paper: dict[str, dict[str, float]] = PAPER) -> str:
     groups: list[list[tuple[str, str, str, str, str]]] = []
     for benchmark in BENCHMARKS:
         if benchmark not in scores:
             continue
         group: list[tuple[str, str, str, str, str]] = []
-        for metric, paper_value in PAPER[benchmark].items():
+        for metric, paper_value in paper[benchmark].items():
             reproduced = scores[benchmark][metric]
             group.append(
                 (
@@ -340,6 +467,7 @@ def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default="AI45Research/AgentDoG1.5-Qwen3.5-0.8b")
     parser.add_argument("--benchmark", required=True, choices=BENCHMARK_CHOICES)
+    parser.add_argument("--task", choices=("coarse", "fine"), default="coarse")
     parser.add_argument(
         "--base-url",
         default="http://127.0.0.1:8000",
@@ -385,6 +513,8 @@ def arguments() -> argparse.Namespace:
         parser.error("swap-space and cpu-offload-gb cannot be negative")
     if args.limit is not None and args.limit < 1:
         parser.error("limit must be positive")
+    if args.task == "fine" and args.benchmark != "atbench":
+        parser.error("fine-grained diagnosis is reported on ATBench only; use --benchmark atbench")
     if args.max_num_batched_tokens is not None and args.max_num_batched_tokens < 1:
         parser.error("max-num-batched-tokens must be positive")
     return args
@@ -397,8 +527,14 @@ def main() -> None:
     run_id = started.strftime("%Y%m%d_%H%M%S_%f")
     run_dir = args.runs_dir / args.benchmark / run_id
     run_dir.mkdir(parents=True)
-    prompt_template = (HERE / "prompt.txt").read_text(encoding="utf-8").rstrip()
+    prompt_name = "prompt_finegrained.txt" if args.task == "fine" else "prompt.txt"
+    prompt_template = (HERE / prompt_name).read_text(encoding="utf-8").rstrip()
     (run_dir / "prompt.txt").write_text(prompt_template + "\n", encoding="utf-8")
+    paper = PAPER
+    paper_model = None
+    if args.task == "fine":
+        paper_model, paper_row = fine_paper_for(args.model)
+        paper = {"atbench": paper_row}
 
     run = {
         "run_id": run_id,
@@ -413,6 +549,7 @@ def main() -> None:
         "gpus": gpu_inventory(),
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "prompt_sha256": hashlib.sha256(prompt_template.encode("utf-8")).hexdigest(),
+        "paper_model": paper_model,
         "config": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
         "datasets": {},
     }
@@ -422,6 +559,11 @@ def main() -> None:
         loaded = {
             name: load_benchmark(name, args.benchmark_root) for name in names
         }
+        if args.task == "fine":
+            loaded = {
+                name: (fine_subset(examples), metadata | {"fine_grained_subset": "unsafe"})
+                for name, (examples, metadata) in loaded.items()
+            }
         if args.limit is not None:
             loaded = {
                 name: (examples[: args.limit], metadata)
@@ -494,13 +636,25 @@ def main() -> None:
                     text = choice.get("text") or ""
                     prompt_token_ids = choice.get("prompt_token_ids") or []
                     output_token_ids = choice.get("token_ids") or []
-                    prediction = parse_output(text)
+                    if args.task == "fine":
+                        parsed = parse_fine_output(text)
+                        prediction = (
+                            {dim: resolve_label(dim, parsed[dim]) for dim in FINE_DIMENSIONS}
+                            if parsed is not None
+                            else None
+                        )
+                        extra = {"gold_fine": item.fine, "prediction_raw": parsed}
+                        parsed_ok = parsed is not None
+                    else:
+                        prediction = parse_output(text)
+                        extra = {}
+                        parsed_ok = prediction is not None
                     row = {
                         "benchmark": name,
                         "id": item.id,
                         "gold": item.gold,
                         "prediction": prediction,
-                        "strict_parse_valid": prediction is not None,
+                        "strict_parse_valid": parsed_ok,
                         "raw_output": text,
                         "finish_reason": choice.get("finish_reason"),
                         "prompt_chars": len(prompt),
@@ -508,15 +662,18 @@ def main() -> None:
                         "prompt_tokens_after_truncation": len(prompt_token_ids) or prompt_length,
                         "prompt_truncated": prompt_length > prompt_budget,
                         "output_tokens": len(output_token_ids),
-                    }
+                    } | extra
                     predictions.append(row)
                     stream.write(json.dumps(row, ensure_ascii=False) + "\n")
                     stream.flush()
-            all_scores[name] = metrics(predictions)
+            all_scores[name] = fine_metrics(predictions) if args.task == "fine" else metrics(predictions)
             print(f"Finished {name}")
 
-        table = results_table(all_scores)
-        dump_json(run_dir / "metrics.json", {"paper": PAPER, "reproduction": all_scores})
+        table = results_table(all_scores, paper)
+        dump_json(
+            run_dir / "metrics.json",
+            {"paper_model": paper_model, "paper": paper, "reproduction": all_scores},
+        )
         (run_dir / "results.md").write_text(table + "\n", encoding="utf-8")
         run.update({"status": "completed", "finished_at": datetime.now().astimezone().isoformat()})
         dump_json(run_dir / "run.json", run)
