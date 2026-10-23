@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  echo "用法: bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
+}
+
 if [[ $# -lt 1 ]]; then
-  echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
+  usage
+  exit 2
+fi
+
+MODEL_SIZE="0.8B"
+if [[ "$1" == "0.8B" || "$1" == "2B" || "$1" == "4B" ]]; then
+  MODEL_SIZE="$1"
+  shift
+fi
+if [[ $# -lt 1 ]]; then
+  usage
   exit 2
 fi
 
@@ -11,7 +25,7 @@ shift
 case "$BENCHMARK" in
   serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine) ;;
   *)
-    echo "用法: bash judge_eval/run_benchmark.sh {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
+    usage
     exit 2
     ;;
 esac
@@ -20,9 +34,10 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 # ======================== 直接修改这里 ========================
-MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B"
+# 尺寸由命令第一个参数选择：bash judge_eval/run_benchmark.sh 4B all
+MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/${MODEL_SIZE}/coarse-grained/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
 # Table 3 的细粒度模型。目录名里的 0.8B/2B/4B/8B 用来选择论文对照行。
-FINE_MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B"
+FINE_MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/${MODEL_SIZE}/fine-grained/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
 CUDA_VISIBLE_DEVICES="0"
 PORT="8000"
 
@@ -91,7 +106,7 @@ if [[ "$BENCHMARK" == "serve" ]]; then
   echo "vLLM server on $BASE_URL"
   echo "model=$MODEL_PATH cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
   echo "max_model_len=$MAX_MODEL_LEN max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS"
-  echo "Leave this process running. Evaluate with: bash judge_eval/run_benchmark.sh all"
+  echo "Leave this process running. Evaluate with: bash judge_eval/run_benchmark.sh ${MODEL_SIZE} all"
   SERVE_ARGS=(
     --host 127.0.0.1
     --port "$PORT"
@@ -123,7 +138,7 @@ if [[ "$BENCHMARK" == "serve" ]]; then
   exec vllm serve "$MODEL_PATH" "${SERVE_ARGS[@]}" "$@"
 fi
 
-echo "benchmark=$BENCHMARK task=$TASK_NAME model=$MODEL_PATH server=$BASE_URL"
+echo "benchmark=$BENCHMARK task=$TASK_NAME model_size=$MODEL_SIZE model=$MODEL_PATH server=$BASE_URL"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES tensor_parallel_size=$TENSOR_PARALLEL_SIZE"
 echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
 echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"

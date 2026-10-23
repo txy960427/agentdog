@@ -43,13 +43,28 @@ VERL_ROOT = HERE.parent
 BENCHMARKS = ("atbench", "atbench-claw", "atbench-codex", "rjudge")
 BENCHMARK_CHOICES = (*BENCHMARKS, "all")
 EXPECTED_SIZE = {"atbench": 1000, "atbench-claw": 500, "atbench-codex": 500, "rjudge": 571}
-# AgentDoG 1.5 paper: Table 2 (R-Judge/ATBench) and Figure 7 (Claw/Codex).
-PAPER = {
-    "atbench": {"accuracy": 60.3, "precision": 58.6, "recall": 68.6, "f1": 63.2},
-    "atbench-claw": {"accuracy": 78.4},
-    "atbench-codex": {"accuracy": 70.2},
-    "rjudge": {"accuracy": 75.7, "precision": 83.3, "recall": 67.5, "f1": 74.6},
+# AgentDoG 1.5 README table for R-Judge and ATBench. Claw and Codex are accuracy only.
+COARSE_PAPER = {
+    "0.8B": {
+        "atbench": {"accuracy": 60.3, "precision": 58.6, "recall": 68.6, "f1": 63.2},
+        "atbench-claw": {"accuracy": 78.4},
+        "atbench-codex": {"accuracy": 70.2},
+        "rjudge": {"accuracy": 75.7, "precision": 83.3, "recall": 67.5, "f1": 74.6},
+    },
+    "2B": {
+        "atbench": {"accuracy": 69.0, "precision": 70.1, "recall": 65.7, "f1": 67.8},
+        "atbench-claw": {"accuracy": 74.8},
+        "atbench-codex": {"accuracy": 75.6},
+        "rjudge": {"accuracy": 71.5, "precision": 78.0, "recall": 64.1, "f1": 70.4},
+    },
+    "4B": {
+        "atbench": {"accuracy": 72.4, "precision": 69.2, "recall": 80.3, "f1": 74.3},
+        "atbench-claw": {"accuracy": 84.0},
+        "atbench-codex": {"accuracy": 80.0},
+        "rjudge": {"accuracy": 92.2, "precision": 91.7, "recall": 93.7, "f1": 92.7},
+    },
 }
+PAPER = COARSE_PAPER["0.8B"]
 # Table 3. Accuracy on the 497 unsafe ATBench trajectories. Avg. is the mean of the three.
 FINE_PAPER = {
     "0.8B": {"risk_source": 65.7, "failure_mode": 18.4, "real_world_harm": 44.9, "avg": 43.0},
@@ -71,10 +86,15 @@ STRICT_OUTPUT = re.compile(
     rf"{_TICKS}</Judgment>{_TICKS}\s*\Z",
     re.IGNORECASE,
 )
-FINE_OUTPUT = re.compile(
-    rf"\A\s*{_TICKS}<Analysis>{_TICKS}\s*"
+# 0.8B emits only the three label lines. 2B and 4B usually lead with <Analysis>.
+# A few 2B completions repeat the labels after </think>; the visible answer is that tail.
+_ANALYSIS_BLOCK = (
+    rf"{_TICKS}<Analysis>{_TICKS}\s*"
     rf"\S[\s\S]*?"
     rf"{_TICKS}</Analysis>{_TICKS}\s*"
+)
+FINE_OUTPUT = re.compile(
+    rf"\A\s*(?:{_ANALYSIS_BLOCK})?"
     rf"{_TICKS}Failure Mode:{_TICKS}\s*([^\n]+)\s*"
     rf"{_TICKS}Risk Consequence:{_TICKS}\s*([^\n]+)\s*"
     rf"{_TICKS}Risk Source:{_TICKS}\s*([^\n]+)\s*\Z",
@@ -107,7 +127,7 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_benchmark(name: str, root: Path) -> tuple[list[Example], dict[str, Any]]:
+def load_benchmark(name: str, root: Path, raw_actions: bool = False) -> tuple[list[Example], dict[str, Any]]:
     if name != "rjudge":
         path = root / name / "test.json"
         rows = read_json(path)
@@ -119,7 +139,7 @@ def load_benchmark(name: str, root: Path) -> tuple[list[Example], dict[str, Any]
                         name,
                         str(row["id"]),
                         "unsafe" if row["label"] == 1 else "safe",
-                        build_prompt_fields(name, row),
+                        build_prompt_fields(name, row, raw_actions=raw_actions),
                         {
                             "risk_source": row["risk_source"],
                             "failure_mode": row["failure_mode"],
@@ -210,7 +230,12 @@ def resolve_label(dimension: str, text: str) -> str | None:
 
 
 def parse_fine_output(text: str) -> dict[str, str] | None:
-    match = FINE_OUTPUT.fullmatch(text)
+    visible = text
+    if "</think>" in visible:
+        tail = visible.rsplit("</think>", 1)[-1]
+        if tail.strip():
+            visible = tail
+    match = FINE_OUTPUT.fullmatch(visible)
     if not match:
         return None
     failure_mode, real_world_harm, risk_source = match.groups()
@@ -240,17 +265,31 @@ def fine_subset(examples: list[Example]) -> list[Example]:
     return resolved
 
 
-def fine_paper_for(model: str) -> tuple[str, dict[str, float]]:
+def model_size(model: str) -> str:
+    """Read 0.8B, 2B, 4B, or 8B from a local directory or model id."""
     name = Path(model).name.lower()
     if "0.8" in name:
+        return "0.8B"
+    if re.search(r"(^|[^0-9])2b([^0-9]|$)", name):
+        return "2B"
+    if re.search(r"(^|[^0-9])4b([^0-9]|$)", name):
+        return "4B"
+    if "llama" in name or re.search(r"(^|[^0-9])8b([^0-9]|$)", name):
+        return "8B"
+    return "0.8B"
+
+
+def coarse_paper_for(model: str) -> tuple[str, dict[str, dict[str, float]]]:
+    key = model_size(model)
+    if key not in COARSE_PAPER:
+        print(f"No coarse paper row for {key}; comparing with 0.8B.", file=sys.stderr)
         key = "0.8B"
-    elif re.search(r"(^|[^0-9])2b([^0-9]|$)", name):
-        key = "2B"
-    elif re.search(r"(^|[^0-9])4b([^0-9]|$)", name):
-        key = "4B"
-    elif "llama" in name or re.search(r"(^|[^0-9])8b([^0-9]|$)", name):
-        key = "8B"
-    else:
+    return key, COARSE_PAPER[key]
+
+
+def fine_paper_for(model: str) -> tuple[str, dict[str, float]]:
+    key = model_size(model)
+    if key not in FINE_PAPER:
         key = "0.8B"
     return key, FINE_PAPER[key]
 
@@ -396,7 +435,10 @@ def gpu_inventory() -> list[dict[str, str]]:
 
 
 def selected_benchmarks(name: str) -> tuple[str, ...]:
-    return BENCHMARKS if name == "all" else (name,)
+    # Temporarily skip Claw and Codex in the combined run. The two commands still work alone.
+    if name == "all":
+        return ("atbench", "rjudge")
+    return (name,)
 
 
 def server_ready(base_url: str) -> None:
@@ -530,11 +572,11 @@ def main() -> None:
     prompt_name = "prompt_finegrained.txt" if args.task == "fine" else "prompt.txt"
     prompt_template = (HERE / prompt_name).read_text(encoding="utf-8").rstrip()
     (run_dir / "prompt.txt").write_text(prompt_template + "\n", encoding="utf-8")
-    paper = PAPER
-    paper_model = None
     if args.task == "fine":
         paper_model, paper_row = fine_paper_for(args.model)
         paper = {"atbench": paper_row}
+    else:
+        paper_model, paper = coarse_paper_for(args.model)
 
     run = {
         "run_id": run_id,
@@ -557,7 +599,7 @@ def main() -> None:
 
     try:
         loaded = {
-            name: load_benchmark(name, args.benchmark_root) for name in names
+            name: load_benchmark(name, args.benchmark_root, raw_actions=args.task == "fine") for name in names
         }
         if args.task == "fine":
             loaded = {
@@ -612,6 +654,7 @@ def main() -> None:
                     [{"role": "user", "content": content}],
                     tokenize=False,
                     add_generation_prompt=True,
+                    enable_thinking=False,
                 )
                 for content in rendered[name]
             ]

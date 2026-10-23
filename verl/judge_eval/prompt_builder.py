@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -99,8 +101,55 @@ def _atbench_reply(text: str) -> str:
     return reply
 
 
+_SCRIPT_STYLE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+_HTML_TAG = re.compile(r"<[^>]+>")
+
+
+def _html_to_text(html: str) -> str:
+    """Drop scripts, styles, and tags. Keep the visible page text."""
+    text = _SCRIPT_STYLE.sub(" ", html)
+    text = _HTML_TAG.sub(" ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _strip_html_field(value: Any) -> Any:
+    """Replace an environment `html` body with its visible text. Keep short keys such as htmlTitle."""
+    if isinstance(value, dict):
+        cleaned = {}
+        for key, item in value.items():
+            if key == "html" and isinstance(item, str):
+                text = _html_to_text(item)
+                if text:
+                    cleaned[key] = text
+            else:
+                cleaned[key] = _strip_html_field(item)
+        return cleaned
+    if isinstance(value, list):
+        return [_strip_html_field(item) for item in value]
+    return value
+
+
+def _atbench_environment(content: str) -> str:
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        return content
+    stripped = _strip_html_field(parsed)
+    if stripped == parsed:
+        return content
+    return json.dumps(stripped, ensure_ascii=False, indent=2)
+
+
+def _atbench_raw_action_fields(turn: dict[str, Any]) -> list[str]:
+    """One [ACTION] line, using the dataset string. Thought stays out."""
+    text = str(turn.get("action") or "").strip()
+    if not text:
+        return []
+    return [f"[ACTION]: {text}"]
+
+
 def _atbench_agent_fields(turn: dict[str, Any]) -> list[str]:
-    """Match 1.0 binary SFT: one [ACTION] line, no thought or response tag."""
+    """One [ACTION] line. Thought stays out of the ATBench trajectory."""
     text = str(turn.get("action") or "").strip()
     if not text:
         return []
@@ -118,9 +167,128 @@ def _atbench_agent_fields(turn: dict[str, Any]) -> list[str]:
     return [f"[ACTION]: {text}"]
 
 
-def format_conversation(row: dict[str, Any], normalize_actions: bool = False) -> str:
-    """Serialize ATBench/R-Judge records. Thought is omitted for these two."""
-    parts: list[str] = [_profile_header(str(row.get("profile") or ""))]
+_TOOL_NAME = r"[A-Za-z][A-Za-z0-9_]*"
+
+
+def _load_loose_object(raw: str) -> Any:
+    """Parse a JSON object or a Python literal used by R-Judge actions."""
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return ast.literal_eval(raw)
+
+
+def _named_call(name: str, raw_arguments: str) -> str | None:
+    try:
+        arguments = _load_loose_object(raw_arguments)
+    except (json.JSONDecodeError, SyntaxError, ValueError):
+        return None
+    if not isinstance(arguments, (dict, list)):
+        return None
+    return f"[ACTION]: {_action_text(name, arguments)}"
+
+
+def _command_wrapper(text: str) -> str | None:
+    """Some records store the call as `"command": {"name", "args"}`."""
+    if not text.startswith('"command"'):
+        return None
+    payload = None
+    for candidate in ("{" + text, "{" + text + "}", "{" + text + "}}"):
+        try:
+            payload = _load_loose_object(candidate)
+        except (json.JSONDecodeError, SyntaxError, ValueError):
+            payload = None
+        if isinstance(payload, dict):
+            break
+    command = payload.get("command") if isinstance(payload, dict) else None
+    if not isinstance(command, dict) or not command.get("name"):
+        return None
+    arguments = command.get("args", command.get("arguments", {}))
+    if not isinstance(arguments, (dict, list)):
+        return None
+    return f"[ACTION]: {_action_text(command['name'], arguments)}"
+
+
+def _rjudge_action_lines(text: str) -> list[str]:
+    """Match Codex/Claw: tool JSON, or Complete for a plain reply."""
+    blocks = re.split(rf"\n(?={_TOOL_NAME}\s*:\s*[\{{[])", text)
+    if len(blocks) > 1:
+        lines = []
+        for block in blocks:
+            match = re.fullmatch(
+                rf"({_TOOL_NAME})\s*:\s*(\{{.*\}}|\[.*\])\s*",
+                block,
+                re.S,
+            )
+            line = _named_call(match.group(1), match.group(2)) if match else None
+            if line is None:
+                lines = []
+                break
+            lines.append(line)
+        if lines:
+            return lines
+
+    patterns = (
+        rf"^({_TOOL_NAME})\s*\n\s*Action Input:\s*(\{{.*\}}|\[.*\])\s*$",
+        rf"^({_TOOL_NAME})\s+Input:\s*(\{{.*\}}|\[.*\])\s*$",
+        rf"^({_TOOL_NAME})\s*:\s*(\{{.*\}}|\[.*\])\s*$",
+        rf"^({_TOOL_NAME})\s*(\{{.*\}})\s*$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, text, re.S)
+        if match:
+            line = _named_call(match.group(1), match.group(2))
+            if line:
+                return [line]
+
+    command = _command_wrapper(text)
+    if command:
+        return [command]
+
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            payload = None
+        if isinstance(payload, dict) and len(payload) == 1:
+            name, arguments = next(iter(payload.items()))
+            if isinstance(name, str) and isinstance(arguments, (dict, list)):
+                return [f"[ACTION]: {_action_text(name, arguments)}"]
+        match = re.fullmatch(rf"\{{({_TOOL_NAME})\s*:\s*(\{{.*\}})\s*\}}?", text, re.S)
+        if match:
+            line = _named_call(match.group(1), match.group(2))
+            if line:
+                return [line]
+
+    if re.match(rf"^{_TOOL_NAME}\s*(?:\{{|:\s*[\{{[]|\n\s*Action Input:|\s+Input:)", text):
+        return [f"[ACTION]: {text}"]
+    return [f"[ACTION]: Complete{{'response': '{text}'}}"]
+
+
+def _rjudge_agent_fields(turn: dict[str, Any]) -> list[str]:
+    """Thought, then one action line, in the same order as Codex."""
+    fields: list[str] = []
+    thought = _plain(turn.get("thought"))
+    #if thought:
+       # fields.append(f"[THOUGHT]: {thought}")
+    action = _plain(turn.get("action"))
+    if action:
+        fields.extend(_rjudge_action_lines(action))
+    return fields
+
+
+def format_conversation(
+    row: dict[str, Any],
+    normalize_actions: bool = False,
+    rjudge: bool = False,
+    raw_actions: bool = False,
+) -> str:
+    """Serialize ATBench/R-Judge records."""
+    if rjudge:
+        header = _profile_header("")
+    else:
+        header = _profile_header(str(row.get("profile") or "").strip())
+    parts: list[str] = [header]
     parts.append("=== Conversation History ===")
     for round_data in row["contents"]:
         for turn in round_data:
@@ -128,8 +296,10 @@ def format_conversation(row: dict[str, Any], normalize_actions: bool = False) ->
             if role == "user" and turn.get("content"):
                 parts.append(f"\n[USER]: {turn['content']}")
             elif role == "agent":
-                if normalize_actions:
-                    fields = _atbench_agent_fields(turn)
+                if rjudge:
+                    fields = _rjudge_agent_fields(turn)
+                elif normalize_actions:
+                    fields = _atbench_raw_action_fields(turn) if raw_actions else _atbench_agent_fields(turn)
                 else:
                     fields = [
                         f"[{key.upper()}]: {str(value).strip()}"
@@ -139,7 +309,10 @@ def format_conversation(row: dict[str, Any], normalize_actions: bool = False) ->
                 if fields:
                     parts.append("\n[AGENT]:\n" + "\n".join(fields))
             elif role == "environment" and turn.get("content"):
-                parts.append(f"\n[ENVIRONMENT]: {turn['content']}")
+                content = turn["content"]
+                if normalize_actions and isinstance(content, str):
+                    content = _atbench_environment(content)
+                parts.append(f"\n[ENVIRONMENT]: {content}")
     return "\n".join(parts)
 
 
@@ -305,12 +478,15 @@ def format_codex_conversation(turns: list[dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
-def build_prompt_fields(benchmark: str, row: dict[str, Any]) -> PromptFields:
+def build_prompt_fields(benchmark: str, row: dict[str, Any], raw_actions: bool = False) -> PromptFields:
     """Construct exactly {trajectory} and {tool_list_text} for one raw record."""
     if benchmark == "atbench":
-        return PromptFields(format_conversation(row, normalize_actions=True), json_text(visible_tools(row["tool_used"])))
+        return PromptFields(
+            format_conversation(row, normalize_actions=True, raw_actions=raw_actions),
+            json_text(visible_tools(row["tool_used"])),
+        )
     if benchmark == "rjudge":
-        return PromptFields(format_conversation(row), row.get("profile", ""))
+        return PromptFields(format_conversation(row, rjudge=True), "None")
     if benchmark == "atbench-claw":
         trajectory = row["trajectory"]
         return PromptFields(format_claw_trajectory(trajectory), claw_tool_context(trajectory))

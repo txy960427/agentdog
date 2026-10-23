@@ -106,16 +106,16 @@ python judge_eval/eval.py --benchmark rjudge --dry-run
 
 模型只在 `serve` 里加载一次。评测进程只渲染提示词并请求这个服务，改提示词后不用重新加载模型。服务用的显存和上下文参数仍是脚本顶部那些变量；改了 `MAX_MODEL_LEN`、`MAX_NUM_SEQS` 这类加载参数才需要重启 `serve`。
 
-先在一个终端留下服务：
+先在一个终端留下服务。尺寸写在命令前面，可选 `0.8B`、`2B`、`4B`，不写时是 `0.8B`。服务和评测必须是同一个尺寸：
 
 ```bash
-bash judge_eval/run_benchmark.sh serve
+bash judge_eval/run_benchmark.sh 4B serve
 ```
 
-另一个终端评测。四个 benchmark 按 ATBench、ATBench-Claw、ATBench-Codex、R-Judge 的顺序各跑一遍，最后打印一张总表：
+另一个终端评测。四个 benchmark 按 ATBench、ATBench-Claw、ATBench-Codex、R-Judge 的顺序各跑一遍，最后打印一张总表。表里的论文列跟随模型尺寸：
 
 ```bash
-bash judge_eval/run_benchmark.sh all
+bash judge_eval/run_benchmark.sh 4B all
 ```
 
 只跑一个数据集时把 `all` 换成 `atbench`、`atbench-claw`、`atbench-codex` 或 `rjudge`。
@@ -206,14 +206,13 @@ GPU_MEMORY_UTILIZATION=0.88
 ENFORCE_EAGER=1
 ```
 
-论文对照值如下：
+论文对照值按模型尺寸选择。Claw 和 Codex 只比较准确率。
 
-| Benchmark | 论文核心指标 |
-|---|---|
-| ATBench | Accuracy 60.3%，Precision 58.6%，Recall 68.6%，F1 63.2% |
-| ATBench-Claw | Accuracy 78.4% |
-| ATBench-Codex | Accuracy 70.2% |
-| R-Judge | Accuracy 75.7%，Precision 83.3%，Recall 67.5%，F1 74.6% |
+| 尺寸 | ATBench | Claw | Codex | R-Judge |
+|---|---|---|---|---|
+| 0.8B | 60.3 / 58.6 / 68.6 / 63.2 | 78.4 | 70.2 | 75.7 / 83.3 / 67.5 / 74.6 |
+| 2B | 69.0 / 70.1 / 65.7 / 67.8 | 74.8 | 75.6 | 71.5 / 78.0 / 64.1 / 70.4 |
+| 4B | 72.4 / 69.2 / 80.3 / 74.3 | 84.0 | 80.0 | 92.2 / 91.7 / 93.7 / 92.7 |
 
 每个 benchmark 完成后，终端会打印“benchmark 名称 + 指标 + 论文指标 + 复现指标”的 Markdown 表格。`unsafe` 是 Precision、Recall 和 F1 的正类。
 
