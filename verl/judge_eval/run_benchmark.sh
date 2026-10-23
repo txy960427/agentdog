@@ -47,7 +47,7 @@ SEED=42
 
 GPU_MEMORY_UTILIZATION=0.90
 MAX_MODEL_LEN=131072
-MAX_TOKENS=1024
+MAX_TOKENS=2048
 # 48GB 4090 holds about 3.3M KV tokens for this 0.8B model. The scheduler
 # admits fewer sequences when prompts are long; 64 is the short-prompt cap.
 MAX_NUM_SEQS=64

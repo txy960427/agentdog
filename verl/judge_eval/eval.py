@@ -100,6 +100,10 @@ FINE_OUTPUT = re.compile(
     rf"{_TICKS}Risk Source:{_TICKS}\s*([^\n]+)\s*\Z",
     re.IGNORECASE,
 )
+# Looped or annotated answers still carry these three headers; take the last ordered triple.
+_FINE_LABEL_LINE = re.compile(
+    rf"(?im)^{_TICKS}(Failure Mode|Risk Consequence|Risk Source):{_TICKS}\s*(.+?)\s*$"
+)
 
 
 @dataclass
@@ -229,21 +233,83 @@ def resolve_label(dimension: str, text: str) -> str | None:
     return LABEL_INDEX.get((dimension, _label_key(text)))
 
 
-def parse_fine_output(text: str) -> dict[str, str] | None:
-    visible = text
-    if "</think>" in visible:
-        tail = visible.rsplit("</think>", 1)[-1]
-        if tail.strip():
-            visible = tail
-    match = FINE_OUTPUT.fullmatch(visible)
-    if not match:
+_FINE_HEADER = {
+    "failure mode": "failure_mode",
+    "risk consequence": "real_world_harm",
+    "risk source": "risk_source",
+}
+
+
+def _fine_label_value(dimension: str, raw: str) -> str | None:
+    """Keep a known category name even when the model appends a trailing gloss."""
+    text = raw.strip().strip("`").strip()
+    if not text:
         return None
-    failure_mode, real_world_harm, risk_source = match.groups()
-    return {
-        "failure_mode": failure_mode.strip(),
-        "real_world_harm": real_world_harm.strip(),
-        "risk_source": risk_source.strip(),
-    }
+    if resolve_label(dimension, text) is not None:
+        return text
+    head = text.split(".", 1)[0].strip()
+    if head and resolve_label(dimension, head) is not None:
+        return head
+    names = {
+        "failure_mode": FAILURE_MODES,
+        "real_world_harm": REAL_WORLD_HARMS,
+        "risk_source": RISK_SOURCES,
+    }[dimension]
+    lowered = text.lower()
+    best = None
+    for name in names:
+        if lowered.startswith(name.lower()) and (best is None or len(name) > len(best)):
+            best = name
+    return best
+
+
+def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
+    """Last complete Failure Mode → Risk Consequence → Risk Source triple."""
+    hits: list[tuple[int, str, str]] = []
+    for match in _FINE_LABEL_LINE.finditer(text):
+        dimension = _FINE_HEADER[match.group(1).lower()]
+        value = _fine_label_value(dimension, match.group(2))
+        if value is not None:
+            hits.append((match.start(), dimension, value))
+    draft: dict[str, str] = {}
+    draft_pos = {"failure_mode": -1, "real_world_harm": -1}
+    complete: dict[str, str] | None = None
+    for position, dimension, value in hits:
+        if dimension == "failure_mode":
+            draft = {"failure_mode": value}
+            draft_pos = {"failure_mode": position, "real_world_harm": -1}
+        elif dimension == "real_world_harm" and "failure_mode" in draft and position > draft_pos["failure_mode"]:
+            draft["real_world_harm"] = value
+            draft_pos["real_world_harm"] = position
+            draft.pop("risk_source", None)
+        elif (
+            dimension == "risk_source"
+            and "failure_mode" in draft
+            and "real_world_harm" in draft
+            and position > draft_pos["real_world_harm"]
+        ):
+            draft["risk_source"] = value
+            complete = dict(draft)
+    return complete
+
+
+def parse_fine_output(text: str) -> dict[str, str] | None:
+    candidates = [text]
+    if "</think>" in text:
+        tail = text.rsplit("</think>", 1)[-1]
+        if tail.strip():
+            candidates.insert(0, tail)
+    for candidate in candidates:
+        match = FINE_OUTPUT.fullmatch(candidate)
+        if match:
+            failure_mode, real_world_harm, risk_source = match.groups()
+            return {
+                "failure_mode": failure_mode.strip(),
+                "real_world_harm": real_world_harm.strip(),
+                "risk_source": risk_source.strip(),
+            }
+    # Prefer the full completion: looped answers bury a complete triple before the cut-off.
+    return _parse_fine_label_lines(text) or _parse_fine_label_lines(candidates[0])
 
 
 def fine_subset(examples: list[Example]) -> list[Example]:
