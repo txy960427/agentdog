@@ -54,6 +54,5 @@ logs/
 *.log
 wandb/
 
-# Eval prediction dumps (trajectories may look like secrets to GitHub)
-verl/judge_eval/baseline_run/**/*.jsonl
+# Local eval run dumps (baseline_run artifacts are tracked)
 verl/judge_eval/runs/
