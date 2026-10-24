@@ -93,6 +93,59 @@ def visible_tools(tools: Any, hidden: set[str] = HIDDEN_TOOL_KEYS) -> Any:
     ]
 
 
+def format_tools_prose_for_judge(tools: Any) -> str:
+    """Online-RL judge style: Tool: / Description: / Parameters:."""
+    if not isinstance(tools, list):
+        return ""
+    chunks: list[str] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        function = tool
+        if tool.get("type") == "function" and isinstance(tool.get("function"), dict):
+            function = tool["function"]
+        name = function.get("name") or tool.get("name") or "unknown_tool"
+        description = function.get("description") or tool.get("description") or ""
+        parameters = function.get("parameters") if isinstance(function.get("parameters"), dict) else {}
+        properties = parameters.get("properties") if isinstance(parameters.get("properties"), dict) else {}
+        lines = [f"Tool: {name}"]
+        if description:
+            lines.append(f"Description: {description}")
+        if properties:
+            lines.append("Parameters:")
+            for param_name, param_schema in properties.items():
+                if not isinstance(param_schema, dict):
+                    param_schema = {}
+                param_type = param_schema.get("type") or ""
+                desc = param_schema.get("description") or ""
+                lines.append(f"  - {param_name} ({param_type}): {desc}")
+        lines.append("")
+        chunks.append("\n".join(lines))
+    return "\n".join(chunks).rstrip()
+
+
+def insert_available_tools_after_profile(trajectory: str, tool_text: str) -> str:
+    """P1 layout: Agent Profile → Available Tools → Conversation History."""
+    tool_text = (tool_text or "").strip()
+    if not tool_text:
+        return trajectory
+    tools_block = f"=== Available Tools ===\n{tool_text}"
+    marker = "=== Conversation History ==="
+    if marker in trajectory:
+        profile, body = trajectory.split(marker, 1)
+        profile = profile.rstrip()
+        body = marker + body
+        parts = [p for p in (profile, tools_block, body) if p]
+        return "\n\n".join(parts)
+    # No profile/conversation split (fallback): keep tools after any leading profile-like head.
+    return f"{trajectory.rstrip()}\n\n{tools_block}"
+
+
+# Backward-compatible alias; prefer insert_available_tools_after_profile (P1).
+def prepend_available_tools(trajectory: str, tool_text: str) -> str:
+    return insert_available_tools_after_profile(trajectory, tool_text)
+
+
 def _atbench_reply(text: str) -> str:
     """Unwrap Complete{"response": ...}. Drop one layer of wrapping quotes."""
     reply = _codex_response(text)
@@ -103,6 +156,27 @@ def _atbench_reply(text: str) -> str:
 
 _SCRIPT_STYLE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
 _HTML_TAG = re.compile(r"<[^>]+>")
+_TRUNC_MARK = " ...[truncated]... "
+# High-mass / PII-heavy environment fields: keep head+tail when long (ablation 1g).
+_BULKY_RESULT_KEYS = {
+    "html",
+    "records",
+    "items",
+    "users",
+    "posts",
+    "organic_results",
+    "content",
+    "messages",
+    "comments",
+    "results",
+    "data",
+    "transactions",
+    "products",
+    "videos",
+    "entries",
+    "ticket",
+}
+_BULKY_FIELD_LIMIT = 800
 
 
 def _html_to_text(html: str) -> str:
@@ -110,6 +184,18 @@ def _html_to_text(html: str) -> str:
     text = _SCRIPT_STYLE.sub(" ", html)
     text = _HTML_TAG.sub(" ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _head_tail(text: str, limit: int, mark: str = _TRUNC_MARK) -> str:
+    """Keep the start and end of a long string; mark the cut in the middle."""
+    if len(text) <= limit:
+        return text
+    keep = limit - len(mark)
+    if keep < 2:
+        return text[:limit]
+    head = keep // 2
+    tail = keep - head
+    return text[:head] + mark + text[-tail:]
 
 
 def _strip_html_field(value: Any) -> Any:
@@ -129,14 +215,39 @@ def _strip_html_field(value: Any) -> Any:
     return value
 
 
+def _compact_bulky_fields(value: Any, limit: int = _BULKY_FIELD_LIMIT) -> Any:
+    """Head+tail truncate bulky result fields; leave other keys intact."""
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in _BULKY_RESULT_KEYS:
+                if isinstance(item, str):
+                    out[key] = _head_tail(item, limit)
+                else:
+                    dumped = json.dumps(item, ensure_ascii=False)
+                    if len(dumped) > limit:
+                        out[key] = {
+                            "_truncated": True,
+                            "type": type(item).__name__,
+                            "chars": len(dumped),
+                            "preview": _head_tail(dumped, limit),
+                        }
+                    else:
+                        out[key] = item
+            else:
+                out[key] = _compact_bulky_fields(item, limit)
+        return out
+    if isinstance(value, list):
+        return [_compact_bulky_fields(item, limit) for item in value]
+    return value
+
+
 def _atbench_environment(content: str) -> str:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
         return content
-    stripped = _strip_html_field(parsed)
-    if stripped == parsed:
-        return content
+    stripped = _compact_bulky_fields(_strip_html_field(parsed))
     return json.dumps(stripped, ensure_ascii=False, indent=2)
 
 
@@ -285,6 +396,63 @@ def _rjudge_agent_fields(turn: dict[str, Any]) -> list[str]:
     return fields
 
 
+def _rjudge_tool_name_from_action(text: str) -> str | None:
+    """Best-effort tool name from an R-Judge action string. Skip Complete/plain replies."""
+    text = _plain(text)
+    if not text or text.startswith("Complete{"):
+        return None
+    for pattern in (
+        rf"^({_TOOL_NAME})\s*\n\s*Action Input:\s*[\{{[]",
+        rf"^({_TOOL_NAME})\s+Input:\s*[\{{[]",
+        rf"^({_TOOL_NAME})\s*:\s*[\{{[]",
+        rf"^({_TOOL_NAME})\s*\{{",
+    ):
+        match = re.match(pattern, text, re.S)
+        if match:
+            return match.group(1)
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            payload = None
+        if isinstance(payload, dict) and len(payload) == 1:
+            name = next(iter(payload))
+            if isinstance(name, str) and re.fullmatch(_TOOL_NAME, name):
+                return name
+        match = re.fullmatch(rf"\{{({_TOOL_NAME})\s*:\s*\{{.*\}}\s*\}}?", text, re.S)
+        if match:
+            return match.group(1)
+    if text.startswith('"command"'):
+        for candidate in ("{" + text, "{" + text + "}", "{" + text + "}}"):
+            try:
+                payload = _load_loose_object(candidate)
+            except (json.JSONDecodeError, SyntaxError, ValueError):
+                payload = None
+            if isinstance(payload, dict):
+                command = payload.get("command")
+                if isinstance(command, dict) and isinstance(command.get("name"), str):
+                    return command["name"]
+                break
+    return None
+
+
+def rjudge_tools_prose(row: dict[str, Any]) -> str:
+    """R-Judge has no tool schema list; emit Tool: name lines from calls in the traj (C2-like)."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for round_data in row.get("contents") or []:
+        for turn in round_data:
+            if turn.get("role") != "agent":
+                continue
+            name = _rjudge_tool_name_from_action(turn.get("action") or "")
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+    if not names:
+        return ""
+    return "\n\n".join(f"Tool: {name}" for name in names)
+
+
 def format_conversation(
     row: dict[str, Any],
     normalize_actions: bool = False,
@@ -292,10 +460,8 @@ def format_conversation(
     raw_actions: bool = False,
 ) -> str:
     """Serialize ATBench/R-Judge records."""
-    if rjudge:
-        header = _profile_header("")
-    else:
-        header = _profile_header(str(row.get("profile") or "").strip())
+    # Same profile header shape as ATBench (TRAINING_PROFILE + optional dataset role).
+    header = _profile_header(str(row.get("profile") or "").strip())
     parts: list[str] = [header]
     parts.append("=== Conversation History ===")
     for round_data in row["contents"]:
@@ -487,17 +653,23 @@ def format_codex_conversation(turns: list[dict[str, Any]]) -> str:
 
 
 def build_prompt_fields(benchmark: str, row: dict[str, Any], raw_actions: bool = False) -> PromptFields:
-    """Construct exactly {trajectory} and {tool_list_text} for one raw record."""
+    """Construct {trajectory} in P1 order: Profile → Tools → Conversation. tool_list_text unused."""
     if benchmark == "atbench":
-        return PromptFields(
-            format_conversation(row, normalize_actions=True, raw_actions=raw_actions),
-            json_text(visible_tools(row["tool_used"])),
-        )
+        # P1: prose tool defs between profile and conversation; no trailing Available-tools section.
+        traj = format_conversation(row, normalize_actions=True, raw_actions=raw_actions)
+        prose = format_tools_prose_for_judge(visible_tools(row["tool_used"]))
+        return PromptFields(insert_available_tools_after_profile(traj, prose), "")
     if benchmark == "rjudge":
-        return PromptFields(format_conversation(row, rjudge=True), "None")
+        # P1: Tool: name lines (no schemas in dataset) between profile and conversation.
+        traj = format_conversation(row, rjudge=True)
+        return PromptFields(insert_available_tools_after_profile(traj, rjudge_tools_prose(row)), "")
     if benchmark == "atbench-claw":
         trajectory = row["trajectory"]
-        return PromptFields(format_claw_trajectory(trajectory), claw_tool_context(trajectory))
+        tool_text = claw_tool_context(trajectory)
+        return PromptFields(
+            insert_available_tools_after_profile(format_claw_trajectory(trajectory), tool_text),
+            "",
+        )
     if benchmark == "atbench-codex":
         trajectory = format_codex_conversation(row["conversation"])
         session = format_codex_session(row["codex_rollout"])
@@ -507,7 +679,7 @@ def build_prompt_fields(benchmark: str, row: dict[str, Any], raw_actions: bool =
         injected = row.get("injected_tool_descriptions")
         if injected:
             tool_text += "\n\ninjected_tool_descriptions:\n" + json_text(injected)
-        return PromptFields(trajectory, tool_text)
+        return PromptFields(insert_available_tools_after_profile(trajectory, tool_text), "")
     raise ValueError(f"Unsupported benchmark: {benchmark}")
 
 

@@ -21,18 +21,18 @@
     }
   },
   "reproduction": {
-    "rjudge": {
-      "samples": 571,
-      "accuracy": 92.46935201401051,
-      "precision": 93.0,
-      "recall": 92.69102990033223,
-      "f1": 92.84525790349419,
+    "atbench": {
+      "samples": 1000,
+      "accuracy": 73.1,
+      "precision": 70.2846975088968,
+      "recall": 79.47686116700201,
+      "f1": 74.59867799811141,
       "strict_parse_rate": 100.0,
       "confusion": {
-        "tp": 279,
-        "fp": 21,
-        "fn": 22,
-        "tn": 249,
+        "tp": 395,
+        "fp": 167,
+        "fn": 102,
+        "tn": 336,
         "invalid": 0
       }
     }

@@ -53,3 +53,7 @@ verl/data/
 logs/
 *.log
 wandb/
+
+# Eval prediction dumps (trajectories may look like secrets to GitHub)
+verl/judge_eval/baseline_run/**/*.jsonl
+verl/judge_eval/runs/

@@ -1,7 +1,7 @@
 {
-  "run_id": "20261024_043403_945869",
+  "run_id": "20261024_124406_283703",
   "status": "completed",
-  "started_at": "2026-10-24T04:34:03.945869+00:00",
+  "started_at": "2026-10-24T12:44:06.283703+00:00",
   "command": [
     "judge_eval/eval.py",
     "--benchmark",
@@ -9,7 +9,7 @@
     "--base-url",
     "http://127.0.0.1:8000",
     "--model",
-    "/home/agentdog/verl/model/agentdog/1.5/4B/coarse-grained/AgentDoG1.5-Qwen3.5-4B",
+    "/home/agentdog/verl/model/agentdog/sft/4B/AgentDoG1.5-Qwen3.5-4B",
     "--tensor-parallel-size",
     "1",
     "--dtype",
@@ -34,12 +34,14 @@
     "left",
     "--max-num-batched-tokens",
     "32768",
-    "--enable-chunked-prefill"
+    "--enable-chunked-prefill",
+    "--runs-dir",
+    "judge_eval/runs/seed_sweep"
   ],
   "cwd": "/home/agentdog/verl",
   "python": "3.12.11 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:09:17) [GCC 11.2.0]",
   "platform": "Linux-6.12.101-compshare-x86_64-with-glibc2.35",
-  "git_head": "8cbf242781db45c14c5ab0147c0d72073d2ba7a1",
+  "git_head": "222b55e49006cbf492f1a6ee422d2192a5d19952",
   "packages": {
     "vllm": "0.29.0",
     "transformers": "5.12.1",
@@ -54,15 +56,15 @@
     }
   ],
   "cuda_visible_devices": "0",
-  "prompt_sha256": "a43746076e96fd4566873a2c9b3bc00d8fb104a30414f871c2d433bd04a9422c",
+  "prompt_sha256": "99e7d6f3c535b3acf2845c3c6df7ebcf27cdde57b88f14ebd3e7c38c17ceadb1",
   "paper_model": "4B",
   "config": {
-    "model": "/home/agentdog/verl/model/agentdog/1.5/4B/coarse-grained/AgentDoG1.5-Qwen3.5-4B",
+    "model": "/home/agentdog/verl/model/agentdog/sft/4B/AgentDoG1.5-Qwen3.5-4B",
     "benchmark": "rjudge",
     "task": "coarse",
     "base_url": "http://127.0.0.1:8000",
     "benchmark_root": "/home/agentdog/verl/benchmark/agentdog",
-    "runs_dir": "/home/agentdog/verl/judge_eval/runs",
+    "runs_dir": "judge_eval/runs/seed_sweep",
     "batch_size": 8,
     "tensor_parallel_size": 1,
     "dtype": "bfloat16",
@@ -227,22 +229,22 @@
       "loaded_samples": 571,
       "evaluated_samples": 571,
       "rendered_prompt_chars": {
-        "min": 1853,
-        "median": 3334,
-        "p95": 4849,
-        "p99": 6099,
-        "max": 7513
+        "min": 1829,
+        "median": 3331,
+        "p95": 4923,
+        "p99": 6323,
+        "max": 7672
       },
       "chat_prompt_tokens": {
-        "min": 436,
-        "median": 836,
-        "p95": 1356,
-        "p99": 1557,
-        "max": 1954,
+        "min": 426,
+        "median": 829,
+        "p95": 1359,
+        "p99": 1578,
+        "max": 1994,
         "budget": 129024,
         "over_budget": 0
       }
     }
   },
-  "finished_at": "2026-10-24T04:36:11.135191+00:00"
+  "finished_at": "2026-10-24T12:46:16.937357+00:00"
 }

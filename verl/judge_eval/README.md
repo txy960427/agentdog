@@ -45,15 +45,15 @@ python -c "import torch, vllm, transformers; print('PyTorch:', torch.__version__
 在 `verl` 根目录执行：
 
 ```bash
-mkdir -p model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
+mkdir -p model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
 hf download AI45Research/AgentDoG1.5-Qwen3.5-0.8b \
-  --local-dir model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
+  --local-dir model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
 ```
 
 下载完成后，默认模型目录应为：
 
 ```text
-verl/model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
+verl/model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
 ```
 
 当前 Windows 工作区中原先的模型下载并不完整，不要把其中的残缺权重当作可运行模型；请在 GPU 机器上按上面的命令重新下载。
@@ -159,7 +159,8 @@ bash judge_eval/run_benchmark.sh atbench --limit 8
 
 | 变量 | 默认值 | 用途 |
 |---|---:|---|
-| `MODEL_PATH` | 本地 0.8B 模型目录 | vLLM 加载的模型路径 |
+| `MODEL_PATH` / `--model-path` | 本地 SFT 粗粒度模型目录（默认 `model/agentdog/sft/<size>/...`） | vLLM / 评测加载的模型路径 |
+| `FINE_MODEL_PATH` / `--fine-model-path` | 本地 GDPO 细粒度模型目录（默认 `model/agentdog/gdpo/<size>/...`） | `serve-fine` / `fine` 使用 |
 | `CUDA_VISIBLE_DEVICES` | `"0"` | 本次运行可见的 GPU 编号 |
 | `MAX_MODEL_LEN` | 131072 | vLLM 最大上下文长度，包含输入和输出 |
 | `MAX_TOKENS` | 1024 | 单条结果最大生成 token 数。512 会在 `</Judgment>` 前截断约两成 ATBench 输出 |
@@ -249,9 +250,9 @@ ENFORCE_EAGER=1
 下载 0.8B 细粒度模型：
 
 ```bash
-mkdir -p model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B
+mkdir -p model/agentdog/gdpo/0.8B/AgentDoG1.5-FG-Qwen3.5-0.8B
 hf download AI45Research/AgentDoG1.5-FG-Qwen3.5-0.8b \
-  --local-dir model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B
+  --local-dir model/agentdog/gdpo/0.8B/AgentDoG1.5-FG-Qwen3.5-0.8B
 ```
 
 先确认 497 条输入能构出来。这一步不加载模型：

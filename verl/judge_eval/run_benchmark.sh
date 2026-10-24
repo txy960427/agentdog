@@ -2,7 +2,11 @@
 set -euo pipefail
 
 usage() {
-  echo "用法: bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [额外参数]" >&2
+  echo "用法: bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|atbench|atbench-claw|atbench-codex|rjudge|all|serve-fine|fine} [选项] [额外参数]" >&2
+  echo "选项:" >&2
+  echo "  --model-path PATH       覆盖本次使用的模型目录（serve / 评测均生效）" >&2
+  echo "  --fine-model-path PATH  覆盖细粒度（GDPO）默认路径；serve-fine/fine 时使用" >&2
+  echo "环境变量（可选）: MODEL_PATH / FINE_MODEL_PATH / SFT_MODEL_PATH / GDPO_MODEL_PATH" >&2
 }
 
 if [[ $# -lt 1 ]]; then
@@ -35,15 +39,16 @@ VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 # ======================== 直接修改这里 ========================
 # 尺寸由命令第一个参数选择：bash judge_eval/run_benchmark.sh 4B all
-MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/${MODEL_SIZE}/coarse-grained/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
-# Table 3 的细粒度模型。目录名里的 0.8B/2B/4B/8B 用来选择论文对照行。
-FINE_MODEL_PATH="$VERL_ROOT/model/agentdog/1.5/${MODEL_SIZE}/fine-grained/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
+# 默认：粗粒度 SFT → model/agentdog/sft/<size>/...；细粒度 GDPO → model/agentdog/gdpo/<size>/...
+DEFAULT_SFT_MODEL_PATH="$VERL_ROOT/model/agentdog/sft/${MODEL_SIZE}/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
+DEFAULT_GDPO_MODEL_PATH="$VERL_ROOT/model/agentdog/gdpo/${MODEL_SIZE}/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
+
 CUDA_VISIBLE_DEVICES="0"
 PORT="8000"
 
 TENSOR_PARALLEL_SIZE=1
 DTYPE="bfloat16"
-SEED=42
+SEED="${SEED:-42}"
 
 GPU_MEMORY_UTILIZATION=0.90
 MAX_MODEL_LEN=131072
@@ -66,12 +71,63 @@ PROMPT_OVERFLOW="truncate"
 TRUNCATION_SIDE="left"
 # =============================================================
 
+# Resolve model paths: defaults < env aliases < CLI flags.
+# SFT_MODEL_PATH / GDPO_MODEL_PATH are preferred; MODEL_PATH / FINE_MODEL_PATH kept for compatibility.
+SFT_MODEL_PATH="${SFT_MODEL_PATH:-${MODEL_PATH:-$DEFAULT_SFT_MODEL_PATH}}"
+GDPO_MODEL_PATH="${GDPO_MODEL_PATH:-${FINE_MODEL_PATH:-$DEFAULT_GDPO_MODEL_PATH}}"
+
+OVERRIDE_MODEL_PATH=""
+FILTERED_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --model-path)
+      if [[ $# -lt 2 ]]; then
+        echo "--model-path 需要路径参数" >&2
+        exit 2
+      fi
+      OVERRIDE_MODEL_PATH="$2"
+      shift 2
+      ;;
+    --model-path=*)
+      OVERRIDE_MODEL_PATH="${1#*=}"
+      shift
+      ;;
+    --fine-model-path)
+      if [[ $# -lt 2 ]]; then
+        echo "--fine-model-path 需要路径参数" >&2
+        exit 2
+      fi
+      GDPO_MODEL_PATH="$2"
+      shift 2
+      ;;
+    --fine-model-path=*)
+      GDPO_MODEL_PATH="${1#*=}"
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      FILTERED_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${FILTERED_ARGS[@]}"
+
+MODEL_PATH="$SFT_MODEL_PATH"
+FINE_MODEL_PATH="$GDPO_MODEL_PATH"
+
 TASK_ARGS=()
 RUNS_ARGS=()
 TASK_NAME="coarse"
 if [[ "$BENCHMARK" == "serve-fine" || "$BENCHMARK" == "fine" ]]; then
   MODEL_PATH="$FINE_MODEL_PATH"
   TASK_NAME="fine"
+fi
+if [[ -n "$OVERRIDE_MODEL_PATH" ]]; then
+  MODEL_PATH="$OVERRIDE_MODEL_PATH"
 fi
 if [[ "$BENCHMARK" == "serve-fine" ]]; then
   BENCHMARK="serve"
@@ -84,7 +140,7 @@ fi
 
 if [[ ! -d "$MODEL_PATH" ]]; then
   echo "没有找到模型目录: $MODEL_PATH" >&2
-  echo "请先按照 judge_eval/README.md 下载模型，或修改脚本顶部的模型路径。" >&2
+  echo "请先按照 judge_eval/README.md 下载模型，或用 --model-path / MODEL_PATH 指定。" >&2
   exit 1
 fi
 
