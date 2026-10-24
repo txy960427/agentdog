@@ -149,22 +149,30 @@ def _atbench_raw_action_fields(turn: dict[str, Any]) -> list[str]:
 
 
 def _atbench_agent_fields(turn: dict[str, Any]) -> list[str]:
-    """One [ACTION] line. Thought stays out of the ATBench trajectory."""
+    """Thought then one [ACTION] line — same agent field order as R-Judge/Codex."""
+    fields: list[str] = []
+    thought = _plain(turn.get("thought"))
+    if thought:
+        fields.append(f"[THOUGHT]: {thought}")
     text = str(turn.get("action") or "").strip()
     if not text:
-        return []
+        return fields
     if text.startswith("Complete{"):
         reply = _atbench_reply(text)
         if not reply:
-            return []
-        return [f"[ACTION]: Complete{{'response': '{reply}'}}"]
+            return fields
+        fields.append(f"[ACTION]: Complete{{'response': '{reply}'}}")
+        return fields
     try:
         action = json.loads(text)
     except json.JSONDecodeError:
-        return [f"[ACTION]: {text}"]
+        fields.append(f"[ACTION]: {text}")
+        return fields
     if isinstance(action, dict) and action.get("name"):
-        return [f"[ACTION]: {_action_text(action.get('name'), action.get('arguments'))}"]
-    return [f"[ACTION]: {text}"]
+        fields.append(f"[ACTION]: {_action_text(action.get('name'), action.get('arguments'))}")
+        return fields
+    fields.append(f"[ACTION]: {text}")
+    return fields
 
 
 _TOOL_NAME = r"[A-Za-z][A-Za-z0-9_]*"
@@ -269,8 +277,8 @@ def _rjudge_agent_fields(turn: dict[str, Any]) -> list[str]:
     """Thought, then one action line, in the same order as Codex."""
     fields: list[str] = []
     thought = _plain(turn.get("thought"))
-    #if thought:
-       # fields.append(f"[THOUGHT]: {thought}")
+    if thought:
+        fields.append(f"[THOUGHT]: {thought}")
     action = _plain(turn.get("action"))
     if action:
         fields.extend(_rjudge_action_lines(action))

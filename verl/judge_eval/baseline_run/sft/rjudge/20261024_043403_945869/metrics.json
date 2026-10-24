@@ -1,0 +1,40 @@
+{
+  "paper_model": "4B",
+  "paper": {
+    "atbench": {
+      "accuracy": 72.4,
+      "precision": 69.2,
+      "recall": 80.3,
+      "f1": 74.3
+    },
+    "atbench-claw": {
+      "accuracy": 84.0
+    },
+    "atbench-codex": {
+      "accuracy": 80.0
+    },
+    "rjudge": {
+      "accuracy": 92.2,
+      "precision": 91.7,
+      "recall": 93.7,
+      "f1": 92.7
+    }
+  },
+  "reproduction": {
+    "rjudge": {
+      "samples": 571,
+      "accuracy": 92.46935201401051,
+      "precision": 93.0,
+      "recall": 92.69102990033223,
+      "f1": 92.84525790349419,
+      "strict_parse_rate": 100.0,
+      "confusion": {
+        "tp": 279,
+        "fp": 21,
+        "fn": 22,
+        "tn": 249,
+        "invalid": 0
+      }
+    }
+  }
+}
