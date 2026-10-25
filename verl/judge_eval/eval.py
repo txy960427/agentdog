@@ -263,14 +263,23 @@ def _strip_analysis_blocks(text: str) -> str:
     return re.sub(r"(?is)<Analysis>.*?</Analysis>", "\n", text)
 
 
-def _fine_triple(failure_mode: str, real_world_harm: str, risk_source: str) -> dict[str, str] | None:
-    """Accept only a complete taxonomy triple (all three dimensions resolve)."""
-    parsed = {
+def _fine_fields(
+    failure_mode: str,
+    real_world_harm: str,
+    risk_source: str,
+) -> dict[str, str | None]:
+    """Resolve each dimension independently; unknown taxonomy names become None."""
+    return {
         "failure_mode": _fine_label_value("failure_mode", failure_mode),
         "real_world_harm": _fine_label_value("real_world_harm", real_world_harm),
         "risk_source": _fine_label_value("risk_source", risk_source),
     }
-    return parsed if all(parsed.values()) else None
+
+
+def _fine_triple(failure_mode: str, real_world_harm: str, risk_source: str) -> dict[str, str] | None:
+    """Accept only a complete taxonomy triple (all three dimensions resolve)."""
+    parsed = _fine_fields(failure_mode, real_world_harm, risk_source)
+    return parsed if all(parsed.values()) else None  # type: ignore[return-value]
 
 
 def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
@@ -335,31 +344,62 @@ def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
     return complete_b if complete_b_at >= complete_at else complete
 
 
-def parse_fine_output(text: str) -> dict[str, str] | None:
+def _best_partial_fields(*candidates: dict[str, str | None] | None) -> dict[str, str | None] | None:
+    """Prefer the candidate that resolves the most dimensions (ties → later)."""
+    best: dict[str, str | None] | None = None
+    best_n = -1
+    for fields in candidates:
+        if not fields:
+            continue
+        n = sum(value is not None for value in fields.values())
+        if n > best_n:
+            best, best_n = fields, n
+    return best if best_n > 0 else None
+
+
+def parse_fine_output(text: str) -> dict[str, str | None] | None:
+    """Parse fine labels.
+
+    Prefer a complete taxonomy triple. If the three header lines are present but one
+    dimension uses an out-of-list name (often a Failure Mode pasted into Risk Source),
+    still return the resolvable dimensions so the other axes are scored.
+    """
     candidates = [text]
+    # Drop closed thinking / leaked ``</think>`` prefixes; labels usually follow the last close.
     if "</think>" in text:
         tail = text.rsplit("</think>", 1)[-1]
         if tail.strip():
             candidates.insert(0, tail)
+    if "<think>" in text and "</think>" not in text:
+        # Truncated thinking channel: keep only text after the open tag if labels follow,
+        # otherwise fall through to line scan on the full string.
+        after = text.split("<think>", 1)[-1]
+        if "Risk Source:" in after or "Failure Mode:" in after:
+            candidates.insert(0, after)
+
+    partials: list[dict[str, str | None] | None] = []
     for candidate in candidates:
         match = FINE_OUTPUT.fullmatch(candidate)
         if match:
-            triple = _fine_triple(*match.groups())
+            failure_mode, real_world_harm, risk_source = match.groups()
+            triple = _fine_triple(failure_mode, real_world_harm, risk_source)
             if triple is not None:
                 return triple
+            partials.append(_fine_fields(failure_mode, real_world_harm, risk_source))
         match_rs = FINE_OUTPUT_RS_FIRST.fullmatch(candidate)
         if match_rs:
             risk_source, failure_mode, real_world_harm = match_rs.groups()
             triple = _fine_triple(failure_mode, real_world_harm, risk_source)
             if triple is not None:
                 return triple
+            partials.append(_fine_fields(failure_mode, real_world_harm, risk_source))
     # Prefer the full completion: looped answers bury a complete triple before the cut-off.
     # Ignore labels that appear only inside <Analysis>; the scored answer is outside.
     for candidate in (text, candidates[0]):
         triple = _parse_fine_label_lines(_strip_analysis_blocks(candidate))
         if triple is not None:
             return triple
-    return None
+    return _best_partial_fields(*partials)
 
 
 def fine_subset(examples: list[Example]) -> list[Example]:
@@ -820,17 +860,18 @@ def main() -> None:
                     output_token_ids = choice.get("token_ids") or []
                     if args.task == "fine":
                         parsed = parse_fine_output(text)
-                        prediction = (
-                            {dim: resolve_label(dim, parsed[dim]) for dim in FINE_DIMENSIONS}
-                            if parsed is not None
-                            else None
-                        )
-                        # Parse is valid only when all three taxonomy labels resolve.
-                        parsed_ok = prediction is not None and all(
-                            prediction[dim] is not None for dim in FINE_DIMENSIONS
-                        )
-                        if not parsed_ok:
+                        if parsed is None:
                             prediction = None
+                            parsed_ok = False
+                        else:
+                            prediction = {
+                                dim: (resolve_label(dim, parsed[dim]) if parsed.get(dim) else None)
+                                for dim in FINE_DIMENSIONS
+                            }
+                            # Full triple required for strict_parse_rate; partials still score.
+                            parsed_ok = all(prediction[dim] is not None for dim in FINE_DIMENSIONS)
+                            if not any(prediction[dim] is not None for dim in FINE_DIMENSIONS):
+                                prediction = None
                         extra = {"gold_fine": item.fine, "prediction_raw": parsed}
                     else:
                         prediction = parse_output(text)

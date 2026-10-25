@@ -43,4 +43,6 @@ Then provide your assessment in exactly three lines:
 **Rules.**
 - The `<Analysis>` block must answer all 3 questions.
 - Output exactly one label for each dimension.
+- `Risk Source:` must be exactly one name from the **Risk Source** list under Categorization (never a Failure Mode or Risk Consequence name).
+- `Failure Mode:` and `Risk Consequence:` must likewise come from their own lists only.
 - Do not output any additional text outside the `<Analysis>` block and the three classification lines.

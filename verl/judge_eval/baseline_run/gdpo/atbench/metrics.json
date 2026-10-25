@@ -11,11 +11,11 @@
   "reproduction": {
     "atbench": {
       "samples": 497,
-      "risk_source": 74.24547283702213,
-      "failure_mode": 26.358148893360163,
-      "real_world_harm": 61.971830985915496,
-      "avg": 54.19181757209927,
-      "strict_parse_rate": 99.19517102615694
+      "risk_source": 74.44668008048289,
+      "failure_mode": 25.955734406438633,
+      "real_world_harm": 62.97786720321932,
+      "avg": 54.46009389671361,
+      "strict_parse_rate": 99.3963782696177
     }
   }
 }

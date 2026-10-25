@@ -1,7 +1,7 @@
 {
-  "run_id": "20261025_022454_906837",
+  "run_id": "20261025_024249_560945",
   "status": "completed",
-  "started_at": "2026-10-25T02:24:54.906837+00:00",
+  "started_at": "2026-10-25T02:42:49.560945+00:00",
   "command": [
     "judge_eval/eval.py",
     "--benchmark",
@@ -43,7 +43,7 @@
   "cwd": "/home/agentdog/verl",
   "python": "3.12.11 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:09:17) [GCC 11.2.0]",
   "platform": "Linux-6.12.101-compshare-x86_64-with-glibc2.35",
-  "git_head": "280e2252f39ec9e92ab9eda05539620b1ee6fb6d",
+  "git_head": "3a9f3225dd1115ac17d7d5393893b89a4b4db02f",
   "packages": {
     "vllm": "0.29.0",
     "transformers": "5.12.1",
@@ -58,7 +58,7 @@
     }
   ],
   "cuda_visible_devices": "0",
-  "prompt_sha256": "f7c1939c55b1fa5656e156d242e0e8de230986070b01be3712d2a225b9c6f77d",
+  "prompt_sha256": "c46317cbbc1438f5ecc920f56d8eba3e8cdc17d5570db757de0da28c30461576",
   "paper_model": "4B",
   "config": {
     "model": "/home/agentdog/verl/model/agentdog/gdpo/4B/AgentDoG1.5-FG-Qwen3.5-4B",
@@ -101,22 +101,22 @@
       "fine_grained_subset": "unsafe",
       "evaluated_samples": 497,
       "rendered_prompt_chars": {
-        "min": 5732,
-        "median": 11734,
-        "p95": 30662,
-        "p99": 53939,
-        "max": 72441
+        "min": 5962,
+        "median": 11964,
+        "p95": 30892,
+        "p99": 54169,
+        "max": 72671
       },
       "chat_prompt_tokens": {
-        "min": 1289,
-        "median": 3149,
-        "p95": 8828,
-        "p99": 16556,
-        "max": 23039,
+        "min": 1342,
+        "median": 3202,
+        "p95": 8881,
+        "p99": 16609,
+        "max": 23092,
         "budget": 129024,
         "over_budget": 0
       }
     }
   },
-  "finished_at": "2026-10-25T02:28:12.906282+00:00"
+  "finished_at": "2026-10-25T02:45:51.039884+00:00"
 }
