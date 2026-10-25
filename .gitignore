@@ -54,5 +54,5 @@ logs/
 *.log
 wandb/
 
-# Local eval run dumps (baseline_run artifacts are tracked)
+# Local eval dumps only — never write these into baseline_run/
 verl/judge_eval/runs/

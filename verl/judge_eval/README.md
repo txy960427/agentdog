@@ -1,8 +1,16 @@
-# AgentDoG 1.5 0.8B 粗粒度安全评测
+# AgentDoG 1.5 粗 / 细粒度安全评测
 
-本目录用于复现 `AgentDoG1.5-Qwen3.5-0.8B` 在 ATBench、ATBench-Claw、ATBench-Codex 和 R-Judge 上的粗粒度安全评测，以及细粒度 SFT + GDPO 模型在 ATBench 上的三维诊断。四个粗粒度 benchmark 必须分别启动；每次命令只加载并评测一个数据集，适合耗时较长的 GPU 推理。细粒度评测见第 8 节。
+本目录用于复现 `AgentDoG1.5-Qwen3.5-*` 在 **ATBench** 与 **R-Judge** 上的粗粒度 safe/unsafe 评测，以及细粒度 SFT + GDPO 模型在 ATBench unsafe 子集上的三维诊断。CLI 把**任务**与**数据集**分开：
 
-`prompt.txt` 逐字转录自论文附录 B.2 的 **Coarse Judgment Prompt Template**（第 38–39 页）。`prompt_builder.py` 单独负责构造 `{trajectory}` 和 `{tool_list_text}`，随后使用模型自带的 chat template。
+```text
+bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|serve-fine|coarse|fine} [atbench|rjudge|all]
+```
+
+- `coarse` / `fine`：任务（粗 / 细）；数据集默认 `all`
+- `all`：粗粒度 = atbench + rjudge；细粒度 = atbench（唯一细粒度 bench）
+- `serve` / `serve-fine`：常驻 vLLM（SFT / GDPO）
+
+`prompt.txt` 逐字转录自论文附录 B.2 的 **Coarse Judgment Prompt Template**（第 38–39 页）；模板只有 `{trajectory}`，不含单独的 Tools 槽。工具列表写进轨迹：`Agent Profile → Available Tools → Conversation History`。`prompt_builder.py` 负责序列化，再套模型自带的 chat template（`enable_thinking=False`，seed 默认 42）。
 
 ## 1. 在新的 GPU 机器上配置环境
 
@@ -58,16 +66,14 @@ verl/model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
 
 当前 Windows 工作区中原先的模型下载并不完整，不要把其中的残缺权重当作可运行模型；请在 GPU 机器上按上面的命令重新下载。
 
-## 3. 检查四个 benchmark
+## 3. 检查 benchmark
 
 论文和官方数据对应的样本数为：
 
-| Benchmark | 样本数 |
-|---|---:|
-| ATBench | 1000 |
-| ATBench-Claw | 500 |
-| ATBench-Codex | 500 |
-| R-Judge | 571 |
+| Benchmark | 样本数 | 任务 |
+|---|---:|---|
+| ATBench | 1000（粗）/ 497 unsafe（细） | coarse / fine |
+| R-Judge | 571 | coarse |
 
 你补充的 `security.json` 已经在 `benchmark/agentdog/rjudge/data/Program/` 下，文件内有 7 条，当前工作区可完整加载 571 条。R-Judge 论文和官方 README 宣称共有 569 条，但固定提交中的 27 个官方 JSON 文件实际共有 571 条，官方评测脚本也会遍历并加载全部文件。AgentDoG 1.5 公布的 Accuracy 75.7%、Precision 83.3%、Recall 67.5%、F1 74.6% 可由 571 条样本的整数混淆矩阵同时得到，569 条则不能，因此本复现按实际使用的 571 条评测。
 
@@ -83,21 +89,19 @@ curl -fL \
 正式推理前可以分别做输入构建检查；这一步不会加载模型：
 
 ```bash
-python judge_eval/eval.py --benchmark atbench --dry-run
-python judge_eval/eval.py --benchmark atbench-claw --dry-run
-python judge_eval/eval.py --benchmark atbench-codex --dry-run
-python judge_eval/eval.py --benchmark rjudge --dry-run
+python judge_eval/eval.py --task coarse --benchmark atbench --dry-run
+python judge_eval/eval.py --task coarse --benchmark rjudge --dry-run
+python judge_eval/eval.py --task coarse --benchmark all --dry-run
+python judge_eval/eval.py --task fine --benchmark all --dry-run
 ```
 
-终端应分别显示 1000、500、500、571 条。R-Judge 不足 571 条时程序会直接报错，避免误把不完整结果和论文比较。
+终端应分别显示 1000、571、1000+571、497 条。R-Judge 不足 571 条时程序会直接报错，避免误把不完整结果和论文比较。
 
-构建后的 prompt 在不同 benchmark 上长度差异很大。下面是当前数据在套用 `prompt.txt` 后、应用 chat template 前的字符统计；字符数不等于 token 数，但可以看出 ATBench 和 ATBench-Claw 中存在明显长样本：
+构建后的 prompt 在不同 benchmark 上长度差异很大。下面是当前数据在套用 `prompt.txt` 后、应用 chat template 前的字符统计；字符数不等于 token 数，但可以看出 ATBench 中存在明显长样本：
 
 | Benchmark | P99 字符数 | 最大字符数 |
 |---|---:|---:|
 | ATBench | 270,351 | 326,191 |
-| ATBench-Claw | 82,918 | 87,097 |
-| ATBench-Codex | 33,201 | 51,219 |
 | R-Judge | 5,971 | 7,470 |
 
 真实推理时，脚本会用模型 tokenizer 统计 min/median/P95/P99/max token 数，并在生成前打印和写入 `run.json`。输入预算为 `MAX_MODEL_LEN - MAX_TOKENS`，同时会报告超过预算、将被截断的样本数。
@@ -112,13 +116,13 @@ python judge_eval/eval.py --benchmark rjudge --dry-run
 bash judge_eval/run_benchmark.sh 4B serve
 ```
 
-另一个终端评测。四个 benchmark 按 ATBench、ATBench-Claw、ATBench-Codex、R-Judge 的顺序各跑一遍，最后打印一张总表。表里的论文列跟随模型尺寸：
+另一个终端评测。粗粒度 `all` 按 ATBench → R-Judge 顺序跑完并打印总表；表里的论文列跟随模型尺寸：
 
 ```bash
-bash judge_eval/run_benchmark.sh 4B all
+bash judge_eval/run_benchmark.sh 4B coarse all
 ```
 
-只跑一个数据集时把 `all` 换成 `atbench`、`atbench-claw`、`atbench-codex` 或 `rjudge`。
+只跑一个数据集时把 `all` 换成 `atbench` 或 `rjudge`。
 
 脚本按单张 RTX 4090 48GB 配好默认值：BF16、128K 上下文、最大并发序列 64、每轮最多调度 32768 tokens，并开启 chunked prefill。客户端按并发上限分批提交，并显示一条总进度。
 
@@ -148,7 +152,7 @@ MODEL_PATH="/data/models/AgentDoG1.5-Qwen3.5-0.8B"
 先取少量样本做端到端冒烟测试：
 
 ```bash
-bash judge_eval/run_benchmark.sh atbench --limit 8
+bash judge_eval/run_benchmark.sh 4B coarse atbench --limit 8
 ```
 
 ## 5. 调节 vLLM 和长输入参数
@@ -179,7 +183,7 @@ bash judge_eval/run_benchmark.sh atbench --limit 8
 | `ENFORCE_EAGER` | 0 | 设为 1 禁用 CUDA graph，便于排查兼容性问题 |
 | `TRUST_REMOTE_CODE` | 0 | 设为 1 允许模型仓库中的自定义代码 |
 
-默认上下文是 128K。脚本会在开始生成前输出真实 token 长度和截断条数。四个 benchmark 在 128K 下都放得下。若要遇到超长输入直接停止：
+默认上下文是 128K。脚本会在开始生成前输出真实 token 长度和截断条数。两个粗粒度 benchmark 在 128K 下都放得下。若要遇到超长输入直接停止：
 
 ```bash
 MAX_MODEL_LEN=131072
@@ -189,7 +193,7 @@ PROMPT_OVERFLOW="error"
 然后运行：
 
 ```bash
-bash judge_eval/run_benchmark.sh atbench
+bash judge_eval/run_benchmark.sh 4B coarse atbench
 ```
 
 显存不足时优先降低 `MAX_NUM_SEQS` 和 `MAX_NUM_BATCHED_TOKENS`，再降低上下文长度：
@@ -207,31 +211,30 @@ GPU_MEMORY_UTILIZATION=0.88
 ENFORCE_EAGER=1
 ```
 
-论文对照值按模型尺寸选择。Claw 和 Codex 只比较准确率。
+论文对照值按模型尺寸选择（Acc / P / R / F1）：
 
-| 尺寸 | ATBench | Claw | Codex | R-Judge |
-|---|---|---|---|---|
-| 0.8B | 60.3 / 58.6 / 68.6 / 63.2 | 78.4 | 70.2 | 75.7 / 83.3 / 67.5 / 74.6 |
-| 2B | 69.0 / 70.1 / 65.7 / 67.8 | 74.8 | 75.6 | 71.5 / 78.0 / 64.1 / 70.4 |
-| 4B | 72.4 / 69.2 / 80.3 / 74.3 | 84.0 | 80.0 | 92.2 / 91.7 / 93.7 / 92.7 |
+| 尺寸 | ATBench | R-Judge |
+|---|---|---|
+| 0.8B | 60.3 / 58.6 / 68.6 / 63.2 | 75.7 / 83.3 / 67.5 / 74.6 |
+| 2B | 69.0 / 70.1 / 65.7 / 67.8 | 71.5 / 78.0 / 64.1 / 70.4 |
+| 4B | 72.4 / 69.2 / 80.3 / 74.3 | 92.2 / 91.7 / 93.7 / 92.7 |
 
 每个 benchmark 完成后，终端会打印“benchmark 名称 + 指标 + 论文指标 + 复现指标”的 Markdown 表格。`unsafe` 是 Precision、Recall 和 F1 的正类。
 
-## 6. 修改两个 prompt 占位符
+## 6. 粗粒度轨迹怎么拼
 
-两个占位符的全部组装逻辑都在 `prompt_builder.py`：
+组装逻辑都在 `prompt_builder.py`，由 `--task coarse`（默认）走落地架构：
 
-- `build_prompt_fields()` 是统一入口，按 benchmark 返回 `trajectory` 和 `tool_list_text`；
-- `format_conversation()` 负责 ATBench 与 R-Judge 的对话序列化；
-- `claw_tool_context()` 负责 ATBench-Claw 的 Skill Context 或工具名；
-- `scrub_codex_rollout()` 负责 ATBench-Codex，并删除含公开答案的 `task_complete` 事件；
-- `render_prompt()` 只把两个字段填入论文模板。
+- **布局**：`=== Agent Profile ===` → `=== Available Tools ===` → `=== Conversation History ===`
+- **ATBench 工具**：`Tool: / Description: / Parameters:` prose；agent 含 `[THOUGHT]` + 规范化 `[ACTION]`；环境 HTML 去标签、大字段 head+tail
+- **R-Judge 工具**：数据集无 schema，Available Tools 固定写 `None`（勿 omit 整块）
+- **入口**：`build_prompt_fields(benchmark, row, task="coarse")` → `render_prompt(prompt.txt, …)`
 
-修改组装方式后，先用 `--dry-run` 检查 `input_preview.jsonl` 中的完整输入。这一步不会加载模型，同时会打印字符长度统计。
+改组装后先用 `--dry-run` 看 `input_preview.jsonl`，不加载模型。
 
 ## 7. 运行记录
 
-每次调用都会新建 `judge_eval/runs/<benchmark>/<时间戳>/`，包括：
+每次调用都会新建 `judge_eval/runs/<task>/<benchmark>/<时间戳>/`（`run_benchmark.sh` 为 coarse/fine 指定 `--runs-dir`），包括：
 
 - `run.json`：命令、全部 vLLM 参数、模型和运行库版本、GPU/驱动、Git 提交、数据文件哈希、样本数、prompt 字符/token 长度与超预算数量、状态和异常；
 - `prompt.txt`：本次运行使用的完整提示词模板；
@@ -239,13 +242,13 @@ ENFORCE_EAGER=1
 - `metrics.json`：论文指标、复现指标、严格解析率和混淆矩阵；
 - `results.md`：终端打印的论文指标与复现指标对照表。
 
-输出格式采用严格解析：回复必须完整包含一个非空的 `<Analysis>` 块，随后是 `<Judgment> safe|unsafe </Judgment>`。格式不合法的输出计为错误，并单独汇总到 `strict_parse_rate`。ATBench-Codex 数据中的 `task_complete` 事件含有公开标签和解释，构建输入时会删除该事件，避免标签泄漏。
+输出格式采用严格解析：回复必须完整包含一个非空的 `<Analysis>` 块，随后是 `<Judgment> safe|unsafe </Judgment>`。格式不合法的输出计为错误，并单独汇总到 `strict_parse_rate`。
 
 ## 8. 细粒度 SFT + GDPO 诊断
 
 论文第 3.3 节先做细粒度 SFT，再用 GDPO 按 Failure Mode、Real-world Harm、Risk Source 三个维度优化。表 3 只在 ATBench 的 unsafe 子集上报告这三个准确率，Avg. 是三者的平均。安全轨迹不进入分母。ATBench 的 1,000 条里有 497 条 unsafe，标签已经在 `benchmark/agentdog/atbench/test.json` 里，不需要另下一份数据。
 
-`prompt_finegrained.txt` 按附录 B.2 的 **Fine-Grained Judgment Prompt Template** 转录。类别名单填入三个占位符；轨迹和工具列表仍走 `prompt_builder.py` 里粗粒度评测同一套序列化。`reason` 和细粒度标签不会进入输入。
+`prompt_finegrained.txt` 按附录 B.2 的 **Fine-Grained Judgment Prompt Template** 转录，落地配置为：最终标签输出序 Risk Source → Failure Mode → Risk Consequence；`{risk_source_categories}` 填入附录叶定义；FM/RWH 为类名列表；工具 schema 以 JSON 填入 `{tools_json}`，轨迹内不再重复工具块；ATBench ACTION 用数据集原文字符串（无 thought）。入口：`build_prompt_fields(..., task="fine")`。`reason` 和细粒度标签不会进入输入。
 
 下载 0.8B 细粒度模型：
 
@@ -258,20 +261,20 @@ hf download AI45Research/AgentDoG1.5-FG-Qwen3.5-0.8b \
 先确认 497 条输入能构出来。这一步不加载模型：
 
 ```bash
-python judge_eval/eval.py --task fine --benchmark atbench --dry-run
+python judge_eval/eval.py --task fine --benchmark all --dry-run
 ```
 
 模型服务和评测分开。`serve-fine` 会改用脚本顶部的 `FINE_MODEL_PATH`，不要和粗粒度的 `serve` 同时占用 8000 端口。
 
 ```bash
-bash judge_eval/run_benchmark.sh serve-fine
-bash judge_eval/run_benchmark.sh fine
+bash judge_eval/run_benchmark.sh 4B serve-fine
+bash judge_eval/run_benchmark.sh 4B fine all
 ```
 
 冒烟测试：
 
 ```bash
-bash judge_eval/run_benchmark.sh fine --limit 8
+bash judge_eval/run_benchmark.sh 4B fine all --limit 8
 ```
 
 论文对照值来自表 3。脚本按模型目录名选择行：名字里有 `0.8`、`2B`、`4B` 或 `8B`/`Llama` 时分别对照下面四行，对不上时按 0.8B。
@@ -283,4 +286,4 @@ bash judge_eval/run_benchmark.sh fine --limit 8
 | AgentDoG 1.5-4B | 75.2% | 27.5% | 62.9% | 55.2% |
 | AgentDoG 1.5-8B | 72.9% | 24.6% | 52.5% | 50.0% |
 
-输出必须是一个非空 `<Analysis>` 块，后面依次是 `Failure Mode:`、`Risk Consequence:`、`Risk Source:` 各一行。格式不合法计为错误。类别名允许和 ATBench 的 snake_case 标签在大小写、标点和词序上对齐，例如 `insecure_interaction_or_execution` 对应 `Insecure Execution or Interaction`。结果写到 `judge_eval/runs/fine/atbench/<时间戳>/`。
+输出必须是一个非空 `<Analysis>` 块，后面依次是 `Risk Source:`、`Failure Mode:`、`Risk Consequence:` 各一行。格式不合法计为错误。类别名允许和 ATBench 的 snake_case 标签在大小写、标点和词序上对齐，例如 `insecure_interaction_or_execution` 对应 `Insecure Execution or Interaction`。结果写到 `judge_eval/runs/fine/atbench/<时间戳>/`。

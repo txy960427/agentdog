@@ -36,9 +36,9 @@ First, provide your reasoning in an `<Analysis>` block:
 `</Analysis>`
 
 Then provide your assessment in exactly three lines:
-- Line 1: `Failure Mode:` followed by exactly ONE category name.
-- Line 2: `Risk Consequence:` followed by exactly ONE category name.
-- Line 3: `Risk Source:` followed by exactly ONE category name.
+- Line 1: `Risk Source:` followed by exactly ONE category name.
+- Line 2: `Failure Mode:` followed by exactly ONE category name.
+- Line 3: `Risk Consequence:` followed by exactly ONE category name.
 
 **Rules.**
 - The `<Analysis>` block must answer all 3 questions.

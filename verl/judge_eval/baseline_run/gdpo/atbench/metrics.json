@@ -1,0 +1,21 @@
+{
+  "paper_model": "4B",
+  "paper": {
+    "atbench": {
+      "risk_source": 75.2,
+      "failure_mode": 27.5,
+      "real_world_harm": 62.9,
+      "avg": 55.2
+    }
+  },
+  "reproduction": {
+    "atbench": {
+      "samples": 497,
+      "risk_source": 74.24547283702213,
+      "failure_mode": 26.358148893360163,
+      "real_world_harm": 61.971830985915496,
+      "avg": 54.19181757209927,
+      "strict_parse_rate": 99.19517102615694
+    }
+  }
+}

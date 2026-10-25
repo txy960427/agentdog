@@ -1,0 +1,8 @@
+1. Malicious User Instruction or Jailbreak: The user explicitly and intentionally instructs the agent to perform harmful actions or generate harmful content, including the use of jailbreaking techniques to bypass built-in safeguards.
+2. Direct Prompt Injection: Malicious instructions are embedded within an otherwise benign user prompt, causing the agent to execute hidden commands that override intended safety constraints.
+3. Indirect Prompt Injection: Malicious instructions are embedded within external content such as webpages, documents, or screenshots observed by the agent, leading it to unknowingly execute hidden commands during perception.
+4. Unreliable or Mis-information: The agent observes incorrect, outdated, incomplete, noisy, or misleading information from its environment, resulting in unsafe or incorrect outputs even in the absence of adversarial intent.
+5. Tool Description Injection: The tool description or API schema is compromised to include malicious instructions or misleading specifications, causing the agent to misuse the tool or invoke harmful parameters.
+6. Malicious Tool Execution: The tool itself exhibits undisclosed malicious behavior or vulnerabilities, leading to unintended and harmful outcomes when executed by the agent.
+7. Corrupted Tool Feedback: The output returned by a tool or API is compromised or manipulated, introducing incorrect information or hidden instructions that influence the agent's subsequent actions.
+8. Inherent Agent/LLM Failures: Failures such as hallucinations, flawed reasoning, incorrect tool selection, or misalignment with task intent, arising from the agent's internal decision-making processes rather than external inputs.

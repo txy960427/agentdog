@@ -1,0 +1,122 @@
+{
+  "run_id": "20261025_022454_906837",
+  "status": "completed",
+  "started_at": "2026-10-25T02:24:54.906837+00:00",
+  "command": [
+    "judge_eval/eval.py",
+    "--benchmark",
+    "all",
+    "--base-url",
+    "http://127.0.0.1:8000",
+    "--model",
+    "/home/agentdog/verl/model/agentdog/gdpo/4B/AgentDoG1.5-FG-Qwen3.5-4B",
+    "--tensor-parallel-size",
+    "1",
+    "--dtype",
+    "bfloat16",
+    "--seed",
+    "42",
+    "--gpu-memory-utilization",
+    "0.90",
+    "--max-model-len",
+    "131072",
+    "--max-tokens",
+    "2048",
+    "--max-num-seqs",
+    "64",
+    "--swap-space",
+    "0",
+    "--cpu-offload-gb",
+    "0",
+    "--prompt-overflow",
+    "truncate",
+    "--truncation-side",
+    "left",
+    "--task",
+    "fine",
+    "--runs-dir",
+    "/home/agentdog/verl/judge_eval/runs/fine",
+    "--max-num-batched-tokens",
+    "32768",
+    "--enable-chunked-prefill"
+  ],
+  "cwd": "/home/agentdog/verl",
+  "python": "3.12.11 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:09:17) [GCC 11.2.0]",
+  "platform": "Linux-6.12.101-compshare-x86_64-with-glibc2.35",
+  "git_head": "280e2252f39ec9e92ab9eda05539620b1ee6fb6d",
+  "packages": {
+    "vllm": "0.29.0",
+    "transformers": "5.12.1",
+    "torch": "2.13.0+cu132"
+  },
+  "gpus": [
+    {
+      "name": "NVIDIA GeForce RTX 4090",
+      "uuid": "GPU-3dfa8252-ddab-4b6e-021d-2e88d6187c8d",
+      "driver_version": "610.57.04",
+      "memory_mib": "49140"
+    }
+  ],
+  "cuda_visible_devices": "0",
+  "prompt_sha256": "f7c1939c55b1fa5656e156d242e0e8de230986070b01be3712d2a225b9c6f77d",
+  "paper_model": "4B",
+  "config": {
+    "model": "/home/agentdog/verl/model/agentdog/gdpo/4B/AgentDoG1.5-FG-Qwen3.5-4B",
+    "benchmark": "all",
+    "task": "fine",
+    "base_url": "http://127.0.0.1:8000",
+    "benchmark_root": "/home/agentdog/verl/benchmark/agentdog",
+    "runs_dir": "/home/agentdog/verl/judge_eval/runs/fine",
+    "batch_size": 8,
+    "tensor_parallel_size": 1,
+    "dtype": "bfloat16",
+    "gpu_memory_utilization": 0.9,
+    "max_model_len": 131072,
+    "max_num_seqs": 64,
+    "max_num_batched_tokens": 32768,
+    "swap_space": 0,
+    "cpu_offload_gb": 0.0,
+    "enable_chunked_prefill": true,
+    "enable_prefix_caching": false,
+    "enforce_eager": false,
+    "max_tokens": 2048,
+    "prompt_overflow": "truncate",
+    "truncation_side": "left",
+    "seed": 42,
+    "trust_remote_code": false,
+    "limit": null,
+    "dry_run": false
+  },
+  "datasets": {
+    "atbench": {
+      "files": [
+        {
+          "path": "/home/agentdog/verl/benchmark/agentdog/atbench/test.json",
+          "sha256": "80c534b5f3517c872b528a2e6b64e34495206968edd184f4aed563d39f0cca09"
+        }
+      ],
+      "warnings": [],
+      "expected_samples": 1000,
+      "loaded_samples": 1000,
+      "fine_grained_subset": "unsafe",
+      "evaluated_samples": 497,
+      "rendered_prompt_chars": {
+        "min": 5732,
+        "median": 11734,
+        "p95": 30662,
+        "p99": 53939,
+        "max": 72441
+      },
+      "chat_prompt_tokens": {
+        "min": 1289,
+        "median": 3149,
+        "p95": 8828,
+        "p99": 16556,
+        "max": 23039,
+        "budget": 129024,
+        "over_budget": 0
+      }
+    }
+  },
+  "finished_at": "2026-10-25T02:28:12.906282+00:00"
+}
