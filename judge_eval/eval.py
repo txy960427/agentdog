@@ -38,9 +38,8 @@ from prompt_builder import (
     risk_source_categories_text,
 )
 
-
 HERE = Path(__file__).resolve().parent
-VERL_ROOT = HERE.parent
+PROJECT_ROOT = HERE.parent
 BASELINE_RUN_DIR = HERE / "baseline_run"
 COARSE_BENCHMARKS = ("atbench", "rjudge")
 FINE_BENCHMARKS = ("atbench",)
@@ -65,10 +64,30 @@ PAPER = COARSE_PAPER["0.8B"]
 
 # Table 3. Accuracy on the 497 unsafe ATBench trajectories. Avg. is the mean of the three.
 FINE_PAPER = {
-    "0.8B": {"risk_source": 65.7, "failure_mode": 18.4, "real_world_harm": 44.9, "avg": 43.0},
-    "2B": {"risk_source": 68.0, "failure_mode": 24.0, "real_world_harm": 53.8, "avg": 48.6},
-    "4B": {"risk_source": 75.2, "failure_mode": 27.5, "real_world_harm": 62.9, "avg": 55.2},
-    "8B": {"risk_source": 72.9, "failure_mode": 24.6, "real_world_harm": 52.5, "avg": 50.0},
+    "0.8B": {
+        "risk_source": 65.7,
+        "failure_mode": 18.4,
+        "real_world_harm": 44.9,
+        "avg": 43.0,
+    },
+    "2B": {
+        "risk_source": 68.0,
+        "failure_mode": 24.0,
+        "real_world_harm": 53.8,
+        "avg": 48.6,
+    },
+    "4B": {
+        "risk_source": 75.2,
+        "failure_mode": 27.5,
+        "real_world_harm": 62.9,
+        "avg": 55.2,
+    },
+    "8B": {
+        "risk_source": 72.9,
+        "failure_mode": 24.6,
+        "real_world_harm": 52.5,
+        "avg": 50.0,
+    },
 }
 FINE_DIMENSIONS = ("risk_source", "failure_mode", "real_world_harm")
 UNSAFE_ATBENCH = 497
@@ -126,7 +145,9 @@ def read_json(path: Path) -> Any:
 
 
 def dump_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def sha256(path: Path) -> str:
@@ -163,14 +184,19 @@ def load_benchmark(
                     },
                 )
             )
-        metadata = {"files": [{"path": str(path), "sha256": sha256(path)}], "warnings": []}
+        metadata = {
+            "files": [{"path": str(path), "sha256": sha256(path)}],
+            "warnings": [],
+        }
     else:
         data_root = root / name / "data"
         examples, files = [], []
         for path in sorted(data_root.glob("*/*.json")):
             rows = read_json(path)
             relative = path.relative_to(data_root).as_posix()
-            files.append({"path": str(path), "sha256": sha256(path), "samples": len(rows)})
+            files.append(
+                {"path": str(path), "sha256": sha256(path), "samples": len(rows)}
+            )
             for index, row in enumerate(rows):
                 sample_id = f"{relative}:{row.get('id', index)}"
                 examples.append(
@@ -186,7 +212,9 @@ def load_benchmark(
     expected = EXPECTED_SIZE[name]
     metadata.update({"expected_samples": expected, "loaded_samples": len(examples)})
     if len(examples) != expected:
-        raise RuntimeError(f"{name}: expected {expected} samples, loaded {len(examples)}")
+        raise RuntimeError(
+            f"{name}: expected {expected} samples, loaded {len(examples)}"
+        )
     return examples, metadata
 
 
@@ -276,7 +304,9 @@ def _fine_fields(
     }
 
 
-def _fine_triple(failure_mode: str, real_world_harm: str, risk_source: str) -> dict[str, str] | None:
+def _fine_triple(
+    failure_mode: str, real_world_harm: str, risk_source: str
+) -> dict[str, str] | None:
     """Accept only a complete taxonomy triple (all three dimensions resolve)."""
     parsed = _fine_fields(failure_mode, real_world_harm, risk_source)
     return parsed if all(parsed.values()) else None  # type: ignore[return-value]
@@ -300,7 +330,11 @@ def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
         if dimension == "failure_mode":
             draft = {"failure_mode": value}
             draft_pos = {"failure_mode": position, "real_world_harm": -1}
-        elif dimension == "real_world_harm" and "failure_mode" in draft and position > draft_pos["failure_mode"]:
+        elif (
+            dimension == "real_world_harm"
+            and "failure_mode" in draft
+            and position > draft_pos["failure_mode"]
+        ):
             draft["real_world_harm"] = value
             draft_pos["real_world_harm"] = position
             draft.pop("risk_source", None)
@@ -323,7 +357,11 @@ def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
         if dimension == "risk_source":
             draft_b = {"risk_source": value}
             draft_b_pos = {"risk_source": position, "failure_mode": -1}
-        elif dimension == "failure_mode" and "risk_source" in draft_b and position > draft_b_pos["risk_source"]:
+        elif (
+            dimension == "failure_mode"
+            and "risk_source" in draft_b
+            and position > draft_b_pos["risk_source"]
+        ):
             draft_b["failure_mode"] = value
             draft_b_pos["failure_mode"] = position
             draft_b.pop("real_world_harm", None)
@@ -344,7 +382,9 @@ def _parse_fine_label_lines(text: str) -> dict[str, str] | None:
     return complete_b if complete_b_at >= complete_at else complete
 
 
-def _best_partial_fields(*candidates: dict[str, str | None] | None) -> dict[str, str | None] | None:
+def _best_partial_fields(
+    *candidates: dict[str, str | None] | None,
+) -> dict[str, str | None] | None:
     """Prefer the candidate that resolves the most dimensions (ties → later)."""
     best: dict[str, str | None] | None = None
     best_n = -1
@@ -406,7 +446,9 @@ def fine_subset(examples: list[Example]) -> list[Example]:
     """Keep ATBench unsafe trajectories and map their labels onto appendix names."""
     unsafe = [item for item in examples if item.gold == "unsafe"]
     if len(unsafe) != UNSAFE_ATBENCH:
-        raise RuntimeError(f"atbench: expected {UNSAFE_ATBENCH} unsafe samples, found {len(unsafe)}")
+        raise RuntimeError(
+            f"atbench: expected {UNSAFE_ATBENCH} unsafe samples, found {len(unsafe)}"
+        )
     resolved: list[Example] = []
     for item in unsafe:
         if item.fine is None:
@@ -415,9 +457,13 @@ def fine_subset(examples: list[Example]) -> list[Example]:
         for dimension in FINE_DIMENSIONS:
             label = resolve_label(dimension, item.fine[dimension])
             if label is None:
-                raise RuntimeError(f"{item.id} {dimension}={item.fine[dimension]!r} is outside the appendix taxonomy")
+                raise RuntimeError(
+                    f"{item.id} {dimension}={item.fine[dimension]!r} is outside the appendix taxonomy"
+                )
             gold[dimension] = label
-        resolved.append(Example(item.benchmark, item.id, item.gold, item.prompt_fields, gold))
+        resolved.append(
+            Example(item.benchmark, item.id, item.gold, item.prompt_fields, gold)
+        )
     return resolved
 
 
@@ -464,7 +510,9 @@ def metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "accuracy": 100.0 * (tp + tn) / total if total else 0.0,
         "precision": 100.0 * precision,
         "recall": 100.0 * recall,
-        "f1": 100.0 * (2 * precision * recall / (precision + recall)) if precision + recall else 0.0,
+        "f1": 100.0 * (2 * precision * recall / (precision + recall))
+        if precision + recall
+        else 0.0,
         "strict_parse_rate": 100.0 * valid / total if total else 0.0,
         "confusion": {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "invalid": total - valid},
     }
@@ -481,7 +529,10 @@ def length_stats(values: list[int], budget: int | None = None) -> dict[str, int]
         "max": ordered[-1],
     }
     if budget is not None:
-        result |= {"budget": budget, "over_budget": sum(value > budget for value in values)}
+        result |= {
+            "budget": budget,
+            "over_budget": sum(value > budget for value in values),
+        }
     return result
 
 
@@ -494,13 +545,17 @@ def fine_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             for row in rows
         )
         result[dimension] = 100.0 * correct / total if total else 0.0
-    result["avg"] = sum(result[dimension] for dimension in FINE_DIMENSIONS) / len(FINE_DIMENSIONS)
+    result["avg"] = sum(result[dimension] for dimension in FINE_DIMENSIONS) / len(
+        FINE_DIMENSIONS
+    )
     valid = sum(row["strict_parse_valid"] for row in rows)
     result["strict_parse_rate"] = 100.0 * valid / total if total else 0.0
     return result
 
 
-def results_table(scores: dict[str, dict[str, Any]], paper: dict[str, dict[str, float]] = PAPER) -> str:
+def results_table(
+    scores: dict[str, dict[str, Any]], paper: dict[str, dict[str, float]] = PAPER
+) -> str:
     groups: list[list[tuple[str, str, str, str, str]]] = []
     for benchmark in scores:
         if benchmark not in paper:
@@ -517,21 +572,37 @@ def results_table(scores: dict[str, dict[str, Any]], paper: dict[str, dict[str, 
                     f"{reproduced - paper_value:+.1f}",
                 )
             )
-        group.append((benchmark, "parse", "-", f"{scores[benchmark]['strict_parse_rate']:.1f}%", "-"))
+        group.append(
+            (
+                benchmark,
+                "parse",
+                "-",
+                f"{scores[benchmark]['strict_parse_rate']:.1f}%",
+                "-",
+            )
+        )
         groups.append(group)
     header = ("Benchmark", "Metric", "Paper", "Reproduction", "Delta")
     widths = [len(cell) for cell in header]
     for group in groups:
         for row in group:
-            widths = [max(width, len(cell)) for width, cell in zip(widths, row, strict=True)]
+            widths = [
+                max(width, len(cell)) for width, cell in zip(widths, row, strict=True)
+            ]
     right = (False, False, True, True, True)
 
     def line(cells: tuple[str, ...]) -> str:
-        padded = [cell.rjust(width) if align else cell.ljust(width) for cell, width, align in zip(cells, widths, right, strict=True)]
+        padded = [
+            cell.rjust(width) if align else cell.ljust(width)
+            for cell, width, align in zip(cells, widths, right, strict=True)
+        ]
         return "| " + " | ".join(padded) + " |"
 
     def rule() -> str:
-        pieces = ["-" * (width - 1) + ":" if align else "-" * width for width, align in zip(widths, right, strict=True)]
+        pieces = [
+            "-" * (width - 1) + ":" if align else "-" * width
+            for width, align in zip(widths, right, strict=True)
+        ]
         return "| " + " | ".join(pieces) + " |"
 
     body: list[str] = []
@@ -559,7 +630,8 @@ def git_head() -> str | None:
     try:
         result = subprocess.run(
             [executable, "rev-parse", "HEAD"],
-            cwd=VERL_ROOT,
+            cwd=PROJECT_ROOT,
+            check=False,
             text=True,
             capture_output=True,
         )
@@ -578,6 +650,7 @@ def gpu_inventory() -> list[dict[str, str]]:
             "--query-gpu=name,uuid,driver_version,memory.total",
             "--format=csv,noheader,nounits",
         ],
+        check=False,
         text=True,
         capture_output=True,
     )
@@ -657,7 +730,9 @@ def generate_completions(
             body = post_json(url, payload_base | {"prompt": chunk}, timeout=7200)
             choices = sorted(body["choices"], key=lambda choice: choice["index"])
             if len(choices) != len(chunk):
-                raise RuntimeError(f"vLLM returned {len(choices)} completions for {len(chunk)} prompts")
+                raise RuntimeError(
+                    f"vLLM returned {len(choices)} completions for {len(chunk)} prompts"
+                )
             for offset, choice in enumerate(choices):
                 generations[start + offset] = choice
             progress.update(len(chunk))
@@ -679,7 +754,9 @@ def arguments() -> argparse.Namespace:
         default="http://127.0.0.1:8000",
         help="OpenAI-compatible vLLM server that already has the model loaded",
     )
-    parser.add_argument("--benchmark-root", type=Path, default=VERL_ROOT / "benchmark" / "agentdog")
+    parser.add_argument(
+        "--benchmark-root", type=Path, default=PROJECT_ROOT / "benchmark" / "agentdog"
+    )
     parser.add_argument(
         "--runs-dir",
         type=Path,
@@ -693,7 +770,9 @@ def arguments() -> argparse.Namespace:
         help="Accepted for compatibility. The whole benchmark is submitted in one generate call; concurrency is --max-num-seqs.",
     )
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
-    parser.add_argument("--dtype", default="bfloat16", choices=("auto", "bfloat16", "float16"))
+    parser.add_argument(
+        "--dtype", default="bfloat16", choices=("auto", "bfloat16", "float16")
+    )
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
     parser.add_argument("--max-model-len", type=int, default=65536)
     parser.add_argument("--max-num-seqs", type=int, default=8)
@@ -705,19 +784,34 @@ def arguments() -> argparse.Namespace:
         help="CPU KV offload buffer per GPU in GiB; passed to vLLM as kv_offloading_size",
     )
     parser.add_argument("--cpu-offload-gb", type=float, default=0.0)
-    parser.add_argument("--enable-chunked-prefill", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--enable-chunked-prefill", action=argparse.BooleanOptionalAction, default=True
+    )
     parser.add_argument("--enable-prefix-caching", action="store_true")
     parser.add_argument("--enforce-eager", action="store_true")
     parser.add_argument("--max-tokens", type=int, default=512)
-    parser.add_argument("--prompt-overflow", choices=("truncate", "error"), default="truncate")
+    parser.add_argument(
+        "--prompt-overflow", choices=("truncate", "error"), default="truncate"
+    )
     parser.add_argument("--truncation-side", choices=("left", "right"), default="left")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--trust-remote-code", action="store_true")
-    parser.add_argument("--limit", type=int, help="samples per benchmark; intended for smoke tests")
-    parser.add_argument("--dry-run", action="store_true", help="build inputs and run records without loading a model")
+    parser.add_argument(
+        "--limit", type=int, help="samples per benchmark; intended for smoke tests"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="build inputs and run records without loading a model",
+    )
     args = parser.parse_args()
-    if min(args.batch_size, args.max_num_seqs, args.max_tokens) < 1 or args.max_model_len <= args.max_tokens:
-        parser.error("batch-size, max-num-seqs, and max-tokens must be positive; max-model-len must be larger")
+    if (
+        min(args.batch_size, args.max_num_seqs, args.max_tokens) < 1
+        or args.max_model_len <= args.max_tokens
+    ):
+        parser.error(
+            "batch-size, max-num-seqs, and max-tokens must be positive; max-model-len must be larger"
+        )
     if not 0 < args.gpu_memory_utilization <= 1:
         parser.error("gpu-memory-utilization must be in (0, 1]")
     if args.swap_space < 0 or args.cpu_offload_gb < 0:
@@ -725,7 +819,9 @@ def arguments() -> argparse.Namespace:
     if args.limit is not None and args.limit < 1:
         parser.error("limit must be positive")
     if args.task == "fine" and args.benchmark not in ("atbench", "all"):
-        parser.error("fine-grained diagnosis is reported on ATBench only; use --benchmark atbench or all")
+        parser.error(
+            "fine-grained diagnosis is reported on ATBench only; use --benchmark atbench or all"
+        )
     if args.max_num_batched_tokens is not None and args.max_num_batched_tokens < 1:
         parser.error("max-num-batched-tokens must be positive")
     runs_dir = args.runs_dir.expanduser().resolve()
@@ -752,7 +848,9 @@ def main() -> None:
     if args.task == "fine":
         paper_model, paper_row = fine_paper_for(args.model)
         paper = {"atbench": paper_row}
-        (run_dir / "risk_source_categories.txt").write_text(risk_source_categories_text() + "\n", encoding="utf-8")
+        (run_dir / "risk_source_categories.txt").write_text(
+            risk_source_categories_text() + "\n", encoding="utf-8"
+        )
     else:
         paper_model, paper = coarse_paper_for(args.model)
 
@@ -770,7 +868,10 @@ def main() -> None:
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "prompt_sha256": hashlib.sha256(prompt_template.encode("utf-8")).hexdigest(),
         "paper_model": paper_model,
-        "config": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
+        "config": {
+            key: str(value) if isinstance(value, Path) else value
+            for key, value in vars(args).items()
+        },
         "datasets": {},
     }
     dump_json(run_dir / "run.json", run)
@@ -782,7 +883,10 @@ def main() -> None:
         }
         if args.task == "fine":
             loaded = {
-                name: (fine_subset(examples), metadata | {"fine_grained_subset": "unsafe"})
+                name: (
+                    fine_subset(examples),
+                    metadata | {"fine_grained_subset": "unsafe"},
+                )
                 for name, (examples, metadata) in loaded.items()
             }
         if args.limit is not None:
@@ -791,18 +895,24 @@ def main() -> None:
                 for name, (examples, metadata) in loaded.items()
             }
         rendered = {
-            name: [render_prompt(prompt_template, item.prompt_fields) for item in examples]
+            name: [
+                render_prompt(prompt_template, item.prompt_fields) for item in examples
+            ]
             for name, (examples, _metadata) in loaded.items()
         }
         for name, (examples, metadata) in loaded.items():
             run["datasets"][name] = metadata | {
                 "evaluated_samples": len(examples),
-                "rendered_prompt_chars": length_stats([len(prompt) for prompt in rendered[name]]),
+                "rendered_prompt_chars": length_stats(
+                    [len(prompt) for prompt in rendered[name]]
+                ),
             }
         dump_json(run_dir / "run.json", run)
 
         if args.dry_run:
-            with (run_dir / "input_preview.jsonl").open("w", encoding="utf-8") as stream:
+            with (run_dir / "input_preview.jsonl").open(
+                "w", encoding="utf-8"
+            ) as stream:
                 for name, (examples, _metadata) in loaded.items():
                     if examples:
                         stream.write(
@@ -812,18 +922,28 @@ def main() -> None:
                             )
                             + "\n"
                         )
-            run.update({"status": "completed", "finished_at": datetime.now().astimezone().isoformat(), "dry_run": True})
+            run.update(
+                {
+                    "status": "completed",
+                    "finished_at": datetime.now().astimezone().isoformat(),
+                    "dry_run": True,
+                }
+            )
             dump_json(run_dir / "run.json", run)
             print("Dry run complete:", run_dir)
             for name in names:
                 print(f"  {name}: {len(loaded[name][0])} inputs")
-                print(f"  rendered prompt chars: {run['datasets'][name]['rendered_prompt_chars']}")
+                print(
+                    f"  rendered prompt chars: {run['datasets'][name]['rendered_prompt_chars']}"
+                )
             return
 
         server_ready(args.base_url)
         from transformers import AutoTokenizer
 
-        tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.model, trust_remote_code=args.trust_remote_code
+        )
         prompt_budget = args.max_model_len - args.max_tokens
         all_scores: dict[str, dict[str, Any]] = {}
         for name in names:
@@ -837,7 +957,10 @@ def main() -> None:
                 )
                 for content in rendered[name]
             ]
-            prompt_lengths = [len(tokenizer.encode(prompt, add_special_tokens=False)) for prompt in prompts]
+            prompt_lengths = [
+                len(tokenizer.encode(prompt, add_special_tokens=False))
+                for prompt in prompts
+            ]
             token_stats = length_stats(prompt_lengths, prompt_budget)
             run["datasets"][name]["chat_prompt_tokens"] = token_stats
             dump_json(run_dir / "run.json", run)
@@ -851,10 +974,14 @@ def main() -> None:
                 f"Submitting {len(prompts)} {name} prompts to {args.base_url}; "
                 f"chunks of {args.max_num_seqs}"
             )
-            choices = generate_completions(args.base_url, args.model, prompts, args, prompt_budget)
+            choices = generate_completions(
+                args.base_url, args.model, prompts, args, prompt_budget
+            )
             predictions: list[dict[str, Any]] = []
             with (run_dir / f"{name}.jsonl").open("w", encoding="utf-8") as stream:
-                for item, prompt, prompt_length, choice in zip(examples, prompts, prompt_lengths, choices, strict=True):
+                for item, prompt, prompt_length, choice in zip(
+                    examples, prompts, prompt_lengths, choices, strict=True
+                ):
                     text = choice.get("text") or ""
                     prompt_token_ids = choice.get("prompt_token_ids") or []
                     output_token_ids = choice.get("token_ids") or []
@@ -865,12 +992,20 @@ def main() -> None:
                             parsed_ok = False
                         else:
                             prediction = {
-                                dim: (resolve_label(dim, parsed[dim]) if parsed.get(dim) else None)
+                                dim: (
+                                    resolve_label(dim, parsed[dim])
+                                    if parsed.get(dim)
+                                    else None
+                                )
                                 for dim in FINE_DIMENSIONS
                             }
                             # Full triple required for strict_parse_rate; partials still score.
-                            parsed_ok = all(prediction[dim] is not None for dim in FINE_DIMENSIONS)
-                            if not any(prediction[dim] is not None for dim in FINE_DIMENSIONS):
+                            parsed_ok = all(
+                                prediction[dim] is not None for dim in FINE_DIMENSIONS
+                            )
+                            if not any(
+                                prediction[dim] is not None for dim in FINE_DIMENSIONS
+                            ):
                                 prediction = None
                         extra = {"gold_fine": item.fine, "prediction_raw": parsed}
                     else:
@@ -887,14 +1022,19 @@ def main() -> None:
                         "finish_reason": choice.get("finish_reason"),
                         "prompt_chars": len(prompt),
                         "prompt_tokens_before_truncation": prompt_length,
-                        "prompt_tokens_after_truncation": len(prompt_token_ids) or prompt_length,
+                        "prompt_tokens_after_truncation": len(prompt_token_ids)
+                        or prompt_length,
                         "prompt_truncated": prompt_length > prompt_budget,
                         "output_tokens": len(output_token_ids),
                     } | extra
                     predictions.append(row)
                     stream.write(json.dumps(row, ensure_ascii=False) + "\n")
                     stream.flush()
-            all_scores[name] = fine_metrics(predictions) if args.task == "fine" else metrics(predictions)
+            all_scores[name] = (
+                fine_metrics(predictions)
+                if args.task == "fine"
+                else metrics(predictions)
+            )
             print(f"Finished {name}")
 
         table = results_table(all_scores, paper)
@@ -903,7 +1043,12 @@ def main() -> None:
             {"paper_model": paper_model, "paper": paper, "reproduction": all_scores},
         )
         (run_dir / "results.md").write_text(table + "\n", encoding="utf-8")
-        run.update({"status": "completed", "finished_at": datetime.now().astimezone().isoformat()})
+        run.update(
+            {
+                "status": "completed",
+                "finished_at": datetime.now().astimezone().isoformat(),
+            }
+        )
         dump_json(run_dir / "run.json", run)
         print(table)
         print(f"\nRun: {run_dir}")

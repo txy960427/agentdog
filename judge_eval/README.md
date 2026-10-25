@@ -19,14 +19,14 @@ bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|serve-fine|coarse|fine} [at
 进入仓库后直接运行：
 
 ```bash
-cd /path/to/verl
+cd /path/to/agentdog
 bash judge_eval/install_env.sh
 ```
 
 安装脚本使用当前系统中的 `python`，会先检查 PyTorch 版本、CUDA 和 GPU。它执行的主要安装命令如下，版本号也可以在 `install_env.sh` 顶部直接修改：
 
 ```bash
-cd /path/to/verl
+cd /path/to/agentdog
 python -m pip install --upgrade pip setuptools wheel
 python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
 python -m pip install --upgrade \
@@ -50,18 +50,18 @@ python -c "import torch, vllm, transformers; print('PyTorch:', torch.__version__
 
 ## 2. 下载 0.8B 粗粒度模型
 
-在 `verl` 根目录执行：
+在仓库根目录执行：
 
 ```bash
-mkdir -p model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
+mkdir -p model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
 hf download AI45Research/AgentDoG1.5-Qwen3.5-0.8b \
-  --local-dir model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
+  --local-dir model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
 ```
 
 下载完成后，默认模型目录应为：
 
 ```text
-verl/model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
+model/agentdog/1.5/0.8B/coarse-grained/AgentDoG1.5-Qwen3.5-0.8B
 ```
 
 当前 Windows 工作区中原先的模型下载并不完整，不要把其中的残缺权重当作可运行模型；请在 GPU 机器上按上面的命令重新下载。
@@ -75,9 +75,9 @@ verl/model/agentdog/sft/0.8B/AgentDoG1.5-Qwen3.5-0.8B
 | ATBench | 1000（粗）/ 497 unsafe（细） | coarse / fine |
 | R-Judge | 571 | coarse |
 
-你补充的 `security.json` 已经在 `benchmark/agentdog/rjudge/data/Program/` 下，文件内有 7 条，当前工作区可完整加载 571 条。R-Judge 论文和官方 README 宣称共有 569 条，但固定提交中的 27 个官方 JSON 文件实际共有 571 条，官方评测脚本也会遍历并加载全部文件。AgentDoG 1.5 公布的 Accuracy 75.7%、Precision 83.3%、Recall 67.5%、F1 74.6% 可由 571 条样本的整数混淆矩阵同时得到，569 条则不能，因此本复现按实际使用的 571 条评测。
+完整副本应在 `benchmark/agentdog/rjudge/data/Program/` 下包含有 7 条记录的 `security.json`。R-Judge 论文和官方 README 宣称共有 569 条，但固定提交中的 27 个官方 JSON 文件实际共有 571 条，官方评测脚本也会遍历并加载全部文件。AgentDoG 1.5 公布的 Accuracy 75.7%、Precision 83.3%、Recall 67.5%、F1 74.6% 可由 571 条样本的整数混淆矩阵同时得到，569 条则不能，因此本复现按实际使用的 571 条评测。
 
-如果复制到 GPU 机器后发现 `security.json` 丢失，可在 `verl` 根目录执行：
+如果 `security.json` 缺失，可在仓库根目录执行：
 
 ```bash
 mkdir -p benchmark/agentdog/rjudge/data/Program
@@ -163,11 +163,11 @@ bash judge_eval/run_benchmark.sh 4B coarse atbench --limit 8
 
 | 变量 | 默认值 | 用途 |
 |---|---:|---|
-| `MODEL_PATH` / `--model-path` | 本地 SFT 粗粒度模型目录（默认 `model/agentdog/sft/<size>/...`） | vLLM / 评测加载的模型路径 |
-| `FINE_MODEL_PATH` / `--fine-model-path` | 本地 GDPO 细粒度模型目录（默认 `model/agentdog/gdpo/<size>/...`） | `serve-fine` / `fine` 使用 |
+| `MODEL_PATH` / `--model-path` | 本地 SFT 粗粒度模型目录（默认 `model/agentdog/1.5/<size>/coarse-grained/...`） | vLLM / 评测加载的模型路径 |
+| `FINE_MODEL_PATH` / `--fine-model-path` | 本地 GDPO 细粒度模型目录（默认 `model/agentdog/1.5/<size>/fine-grained/...`） | `serve-fine` / `fine` 使用 |
 | `CUDA_VISIBLE_DEVICES` | `"0"` | 本次运行可见的 GPU 编号 |
 | `MAX_MODEL_LEN` | 131072 | vLLM 最大上下文长度，包含输入和输出 |
-| `MAX_TOKENS` | 1024 | 单条结果最大生成 token 数。512 会在 `</Judgment>` 前截断约两成 ATBench 输出 |
+| `MAX_TOKENS` | 2048 | 单条结果最大生成 token 数。512 会在 `</Judgment>` 前截断约两成 ATBench 输出 |
 | `PROMPT_OVERFLOW` | `truncate` | 超长输入处理方式：`truncate` 或 `error` |
 | `TRUNCATION_SIDE` | `left` | 截断左侧或右侧；左截断可保留末尾输出规则 |
 | `GPU_MEMORY_UTILIZATION` | 0.90 | vLLM 可使用的单卡显存比例 |
@@ -253,9 +253,9 @@ ENFORCE_EAGER=1
 下载 0.8B 细粒度模型：
 
 ```bash
-mkdir -p model/agentdog/gdpo/0.8B/AgentDoG1.5-FG-Qwen3.5-0.8B
+mkdir -p model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B
 hf download AI45Research/AgentDoG1.5-FG-Qwen3.5-0.8b \
-  --local-dir model/agentdog/gdpo/0.8B/AgentDoG1.5-FG-Qwen3.5-0.8B
+  --local-dir model/agentdog/1.5/0.8B/fine-grained/AgentDoG1.5-FG-Qwen3.5-0.8B
 ```
 
 先确认 497 条输入能构出来。这一步不加载模型：

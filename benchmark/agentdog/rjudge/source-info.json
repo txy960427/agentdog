@@ -1,0 +1,101 @@
+{
+  "sha": "83ce301da3ad50dd8b397e772863f5411c3d3dc2",
+  "node_id": "C_kwDOLGfritoAKDgzY2UzMDFkYTNhZDUwZGQ4YjM5N2U3NzI4NjNmNTQxMWMzZDNkYzI",
+  "commit": {
+    "author": {
+      "name": "Tongxin Yuan",
+      "email": "59903352+Lordog@users.noreply.github.com",
+      "date": "2025-05-15T07:43:31Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2025-05-15T07:43:31Z"
+    },
+    "message": "Update README.md",
+    "tree": {
+      "sha": "8ee2f36fa73c0d9dc5deef6001de23dec242d23b",
+      "url": "https://api.github.com/repos/Lordog/R-Judge/git/trees/8ee2f36fa73c0d9dc5deef6001de23dec242d23b"
+    },
+    "url": "https://api.github.com/repos/Lordog/R-Judge/git/commits/83ce301da3ad50dd8b397e772863f5411c3d3dc2",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJoJZsjCRC1aQ7uu5UhlAAAUUEQAIj6dv/1wxY650Au2/zHuzk0\nJ5ZWgGi0SZ4p97H9nlRGa+4StH/wraw5HpvEKR0KCJL+sX9xhLSdZGJchkUm5ljh\np7TmOOxMKiJPGwsFVUETBlQgoxPVhdOnj3qsjev0sgioUdOccPVxXIfZQlwTFNhF\ny4SinNIPkrLeu7sLG2kvmb9WS02PL6X2qKJnJ4eJ7CXqgDWuvjvA0FainmU0eWnt\nTc4XSwaVT2pKISuikISCwDZvHQ7NAJ7CsXkFk0+qubU0qkSUH9H3R2A/Q39QeF0z\nAacSIGvfoUHoREUXgAzwcBRMFcYInJRmeq1e5zgRMSsp/PByyK4D6LR4Z3FbwYNP\nMcnOnP69aJYzk0jh1enaVQGQ3jYNc8KHuMwyvFJIi9XZ+sE8YyOVBA53F5q1TmQ5\nOH+sl5WeOTNr07PuS1t+RYsZ3uq+z0MOS8EhRt0L4NJmdbyrmpzZqHJhfNQ+oxrI\nxGrss4KhpDe7KYd14Y341LQwGCzeb3bAz8EKRJJv6H4ja1iX1XMY3F9/l77TTYbC\nv0J3/5YSBinEQdXjA1RGd3t8g9g3kfQhsMom31mPhMX/JTbVUnbipVBaUd1nfT1i\n+LD00hS04OiQdEyTzR99nB1+UBNQ+7nptyUhvzYc/R10by7spMVDDKb4KM9xKZ93\nHJMLzNpPiRU3VKeDvO4/\n=uxkL\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 8ee2f36fa73c0d9dc5deef6001de23dec242d23b\nparent 7fc89a19620129ff719ebf5d31ea8c7f2ddea587\nauthor Tongxin Yuan <59903352+Lordog@users.noreply.github.com> 1747295011 +0800\ncommitter GitHub <noreply@github.com> 1747295011 +0800\n\nUpdate README.md",
+      "verified_at": "2025-05-15T07:48:33Z"
+    }
+  },
+  "url": "https://api.github.com/repos/Lordog/R-Judge/commits/83ce301da3ad50dd8b397e772863f5411c3d3dc2",
+  "html_url": "https://github.com/Lordog/R-Judge/commit/83ce301da3ad50dd8b397e772863f5411c3d3dc2",
+  "comments_url": "https://api.github.com/repos/Lordog/R-Judge/commits/83ce301da3ad50dd8b397e772863f5411c3d3dc2/comments",
+  "author": {
+    "login": "Lordog",
+    "id": 59903352,
+    "node_id": "MDQ6VXNlcjU5OTAzMzUy",
+    "avatar_url": "https://avatars.githubusercontent.com/u/59903352?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/Lordog",
+    "html_url": "https://github.com/Lordog",
+    "followers_url": "https://api.github.com/users/Lordog/followers",
+    "following_url": "https://api.github.com/users/Lordog/following{/other_user}",
+    "gists_url": "https://api.github.com/users/Lordog/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/Lordog/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/Lordog/subscriptions",
+    "organizations_url": "https://api.github.com/users/Lordog/orgs",
+    "repos_url": "https://api.github.com/users/Lordog/repos",
+    "events_url": "https://api.github.com/users/Lordog/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/Lordog/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "7fc89a19620129ff719ebf5d31ea8c7f2ddea587",
+      "url": "https://api.github.com/repos/Lordog/R-Judge/commits/7fc89a19620129ff719ebf5d31ea8c7f2ddea587",
+      "html_url": "https://github.com/Lordog/R-Judge/commit/7fc89a19620129ff719ebf5d31ea8c7f2ddea587"
+    }
+  ],
+  "stats": {
+    "total": 17,
+    "additions": 9,
+    "deletions": 8
+  },
+  "files": [
+    {
+      "sha": "93a375b75ca88d88ab83916f12d0e9f25b8071a3",
+      "filename": "README.md",
+      "status": "modified",
+      "additions": 9,
+      "deletions": 8,
+      "changes": 17,
+      "blob_url": "https://github.com/Lordog/R-Judge/blob/83ce301da3ad50dd8b397e772863f5411c3d3dc2/README.md",
+      "raw_url": "https://github.com/Lordog/R-Judge/raw/83ce301da3ad50dd8b397e772863f5411c3d3dc2/README.md",
+      "contents_url": "https://api.github.com/repos/Lordog/R-Judge/contents/README.md?ref=83ce301da3ad50dd8b397e772863f5411c3d3dc2",
+      "patch": "@@ -1,7 +1,5 @@\n # R-Judge: Benchmarking Safety Risk Awareness for LLM Agents\n-> The official repository for R-Judge, containing data and evaluation scripts. Paper Link: https://arxiv.org/abs/2401.10019\n-\n-> The repo is updating with Camera-ready newer version. (2024.10.5)\n+> The official repository for R-Judge, containing data and evaluation scripts. Paper Link: https://aclanthology.org/2024.findings-emnlp.79/\n \n Large language models (LLMs) have exhibited great potential in autonomously completing tasks across real-world applications. Despite this, these LLM agents introduce unexpected safety risks when operating in interactive environments. Instead of centering on the harmlessness of LLM-generated content in most prior studies, this work addresses the imperative need for benchmarking the behavioral safety of LLM agents within diverse environments. We introduce R-Judge, a benchmark crafted to evaluate the proficiency of LLMs in judging and identifying safety risks given agent interaction records. R-Judge comprises 569 records of multi-turn agent interaction, encompassing 27 key risk scenarios among 5 application categories and 10 risk types. It is of high-quality curation with annotated safety labels and risk descriptions. Evaluation of 11 LLMs on R-Judge shows considerable room for enhancing the risk awareness of LLMs: The best-performing model, GPT-4o, achieves 74.42% while no other models significantly exceed the random. Moreover, we reveal that risk awareness in open agent scenarios is a multi-dimensional capability involving knowledge and reasoning, thus challenging for LLMs. With further experiments, we find that fine-tuning on safety judgment significantly improve model performance while straightforward prompting mechanisms fail.\n \n@@ -170,10 +168,13 @@ best model results are underlined. F1 scores that exceed random are in italics.\n \n # Citation\n ```ruby\n-@article{yuan2024rjudge,\n-  title={R-Judge: Benchmarking Safety Risk Awareness for LLM Agents},\n-  author={Tongxin Yuan and Zhiwei He and Lingzhong Dong and Yiming Wang and Ruijie Zhao and Tian Xia and Lizhen Xu and Binglin Zhou and Fangqi Li and Zhuosheng Zhang and Rui Wang and Gongshen Liu},\n-  journal={arXiv preprint arXiv:2401.10019},\n-  year={2024}\n+@inproceedings{yuan-etal-2024-r,\n+    title = \"{R}-Judge: Benchmarking Safety Risk Awareness for {LLM} Agents\",\n+    author = \"Yuan, Tongxin and He, Zhiwei and Dong, Lingzhong and Wang, Yiming and Zhao, Ruijie and Xia, Tian and Xu, Lizhen and Zhou, Binglin and Li, Fangqi and Zhang, Zhuosheng and Wang, Rui and Liu, Gongshen\",\n+    booktitle = \"Findings of the Association for Computational Linguistics: EMNLP 2024\",\n+    publisher = \"Association for Computational Linguistics\",\n+    url = \"https://aclanthology.org/2024.findings-emnlp.79/\",\n+    doi = \"10.18653/v1/2024.findings-emnlp.79\",\n+    pages = \"1467--1490\",\n }\n ```"
+    }
+  ]
+}

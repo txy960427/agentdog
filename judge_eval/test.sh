@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 常用命令速查（在 verl 根目录执行）。复制需要的行即可，不要整文件 bash。
+# 常用命令速查（在 agentdog 仓库根目录执行）。复制需要的行即可，不要整文件 bash。
 # 用法: bash judge_eval/run_benchmark.sh [0.8B|2B|4B] {serve|serve-fine|coarse|fine} [atbench|rjudge|all]
-# 粗粒度默认模型: model/agentdog/sft/<size>/AgentDoG1.5-Qwen3.5-<size>
-# 细粒度默认模型: model/agentdog/gdpo/<size>/AgentDoG1.5-FG-Qwen3.5-<size>
+# 粗粒度默认模型: model/agentdog/1.5/<size>/coarse-grained/AgentDoG1.5-Qwen3.5-<size>
+# 细粒度默认模型: model/agentdog/1.5/<size>/fine-grained/AgentDoG1.5-FG-Qwen3.5-<size>
 # 覆盖路径: --model-path /path  或  MODEL_PATH=/path
 #           --fine-model-path /path  或  FINE_MODEL_PATH=/path
 

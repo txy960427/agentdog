@@ -1,0 +1,14 @@
+{
+  "input": "data/agentdog/1.0/source/AgentDoG1.0-Training-Data/AgentDoG-BinarySafety/train.json",
+  "output_root": "data/agentdog/1.5/coarse-grained/sft",
+  "benchmark_root": "benchmark/agentdog",
+  "seed": 42,
+  "group_near_threshold": 0.88,
+  "benchmark_near_threshold": 0.92,
+  "features_format": "parquet",
+  "quotas": {
+    "train": {"safe": 100, "unsafe": 100},
+    "validation": {"safe": 12, "unsafe": 13},
+    "test": {"safe": 13, "unsafe": 12}
+  }
+}

@@ -18,8 +18,14 @@ usage() {
   echo "选项:" >&2
   echo "  --model-path PATH       覆盖本次模型目录" >&2
   echo "  --fine-model-path PATH  覆盖细粒度（GDPO）默认路径" >&2
+  echo "  --dry-run               只构建输入，不要求模型目录或 vLLM 服务" >&2
   echo "环境变量（可选）: MODEL_PATH / FINE_MODEL_PATH / SFT_MODEL_PATH / GDPO_MODEL_PATH" >&2
 }
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
 
 if [[ $# -lt 1 ]]; then
   usage
@@ -30,6 +36,10 @@ MODEL_SIZE="0.8B"
 if [[ "$1" == "0.8B" || "$1" == "2B" || "$1" == "4B" ]]; then
   MODEL_SIZE="$1"
   shift
+fi
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
 fi
 if [[ $# -lt 1 ]]; then
   usage
@@ -59,11 +69,11 @@ if [[ "$MODE" == "coarse" || "$MODE" == "fine" ]]; then
 fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-VERL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 # ======================== 直接修改这里 ========================
-DEFAULT_SFT_MODEL_PATH="$VERL_ROOT/model/agentdog/sft/${MODEL_SIZE}/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
-DEFAULT_GDPO_MODEL_PATH="$VERL_ROOT/model/agentdog/gdpo/${MODEL_SIZE}/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
+DEFAULT_SFT_MODEL_PATH="$PROJECT_ROOT/model/agentdog/1.5/${MODEL_SIZE}/coarse-grained/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
+DEFAULT_GDPO_MODEL_PATH="$PROJECT_ROOT/model/agentdog/1.5/${MODEL_SIZE}/fine-grained/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
 
 CUDA_VISIBLE_DEVICES="0"
 PORT="8000"
@@ -133,6 +143,7 @@ done
 set -- "${FILTERED_ARGS[@]}"
 
 TASK_NAME="coarse"
+FOLLOWUP_MODE="coarse"
 MODEL_PATH="$SFT_MODEL_PATH"
 TASK_ARGS=()
 RUNS_ARGS=()
@@ -142,6 +153,7 @@ case "$MODE" in
     ;;
   serve-fine)
     MODEL_PATH="$GDPO_MODEL_PATH"
+    FOLLOWUP_MODE="fine"
     MODE="serve"
     ;;
   coarse)
@@ -161,7 +173,15 @@ if [[ -n "$OVERRIDE_MODEL_PATH" ]]; then
   MODEL_PATH="$OVERRIDE_MODEL_PATH"
 fi
 
-if [[ ! -d "$MODEL_PATH" ]]; then
+DRY_RUN=0
+for arg in "$@"; do
+  if [[ "$arg" == "--dry-run" ]]; then
+    DRY_RUN=1
+    break
+  fi
+done
+
+if [[ "$DRY_RUN" != "1" && ! -d "$MODEL_PATH" ]]; then
   echo "没有找到模型目录: $MODEL_PATH" >&2
   echo "请先按照 judge_eval/README.md 下载模型，或用 --model-path / MODEL_PATH 指定。" >&2
   exit 1
@@ -185,7 +205,7 @@ if [[ "$MODE" == "serve" ]]; then
   echo "vLLM server on $BASE_URL"
   echo "model=$MODEL_PATH cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
   echo "max_model_len=$MAX_MODEL_LEN max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS"
-  echo "Leave this process running. Evaluate with: bash judge_eval/run_benchmark.sh ${MODEL_SIZE} coarse all"
+  echo "Leave this process running. Evaluate with: bash judge_eval/run_benchmark.sh ${MODEL_SIZE} ${FOLLOWUP_MODE} all"
   SERVE_ARGS=(
     --host 127.0.0.1
     --port "$PORT"
@@ -223,7 +243,7 @@ echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERF
 echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"
 echo "max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS chunked_prefill=$ENABLE_CHUNKED_PREFILL dtype=$DTYPE"
 
-cd "$VERL_ROOT"
+cd "$PROJECT_ROOT"
 exec python judge_eval/eval.py \
   --benchmark "$BENCHMARK" \
   --base-url "$BASE_URL" \

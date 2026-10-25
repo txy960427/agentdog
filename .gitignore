@@ -44,9 +44,12 @@ ENV/
 **/wandb/
 **/.cache/
 
-# Local model snapshots and training data
-verl/model/
-verl/data/
+# Local model snapshots and training datasets
+/model/
+/data/*
+!/data/agentdog/
+/data/agentdog/*
+!/data/agentdog/README.md
 
 # Training / eval artifacts
 **/outputs/
@@ -55,4 +58,6 @@ logs/
 wandb/
 
 # Local eval dumps only — never write these into baseline_run/
-verl/judge_eval/runs/
+/judge_eval/runs/
+/_setup_downloads/
+/tmp/
