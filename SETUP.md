@@ -35,12 +35,14 @@ The public source contains:
 
 Both source files retain their original `instruction/input/output` schema. Checksums and source metadata are stored beside the downloaded files.
 
-## Step 1
+## Data pipeline
 
 Run from the repository root:
 
 ```bash
-python data_pipeline/agentdog/1.5/coarse-grained/sft/step1_binary.py
+python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
+python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step2
+python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py all
 ```
 
 The generated canonical data and audit reports are written to:

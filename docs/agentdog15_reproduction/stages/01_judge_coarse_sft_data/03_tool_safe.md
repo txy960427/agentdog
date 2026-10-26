@@ -17,15 +17,15 @@ safe twin必须保留同一场景、Profile、工具列表和风险暴露，只�
 
 ### 1.2 原始数据来源
 
-本Step没有新的外部原始数据。输入是Step 2已经冻结的500条canonical unsafe row及其metadata anchors：
+本Step没有新的外部原始数据。输入是Step 2已经冻结的500条完整unsafe row：
 
 ```text
 data/agentdog/1.5/coarse-grained/sft/
-├── canonical/components/
-│   ├── tool_unsafe_train.jsonl
-│   ├── tool_unsafe_validation.jsonl
-│   └── tool_unsafe_test.jsonl
-└── metadata/tool_unsafe.jsonl
+└── step2/
+    └── final/
+        ├── train.jsonl
+        ├── validation.jsonl
+        └── test.jsonl
 ```
 
 输入JSON缩略示例：
@@ -116,44 +116,38 @@ data/agentdog/1.5/coarse-grained/sft/
 }
 ```
 
-safe row的三维字段必须为`null`。parent的三维标签描述风险场景，不是safe轨迹实际发生的failure/harm；它们保存到本Step metadata的`risk_context`，用于配对检查和分布统计。
+safe row的三维字段必须为`null`。parent的三维标签描述风险场景，不是safe轨迹实际发生的failure/harm；它们保存到`intermediate/candidates.jsonl`的`risk_context`，用于配对检查和分布统计。
 
 ## 2. 预计文件结构
 
 ```text
 data/agentdog/1.5/coarse-grained/sft/
-├── canonical/components/
-│   ├── tool_unsafe_train.jsonl
-│   ├── tool_unsafe_validation.jsonl
-│   ├── tool_unsafe_test.jsonl                 # 上述三项为输入
-│   ├── tool_safe_train.jsonl                  # 400条输出
-│   ├── tool_safe_validation.jsonl             # 50条输出
-│   └── tool_safe_test.jsonl                   # 50条输出
-├── metadata/                                  # 输入与输出metadata
-│   ├── tool_unsafe.jsonl
-│   └── tool_safe.jsonl
-├── intermediate/tool-safe/
-│   ├── candidates.jsonl                       # 每个parent的全部生成候选
-│   ├── rejected.jsonl                         # 未通过候选及原因
-│   └── lineage.jsonl                          # parent、候选和最终选择关系
-└── reports/
-    ├── pair_consistency.json
-    ├── safe_strategy_distribution.json
-    └── structural_shift.json
+├── step2/final/                               # 输入：unsafe三份切分
+│   ├── train.jsonl
+│   ├── validation.jsonl
+│   └── test.jsonl
+└── step3/
+    ├── intermediate/
+    │   └── candidates.jsonl                   # 候选、状态、拒绝原因和parent lineage
+    ├── final/
+    │   ├── train.jsonl                        # 400条safe输出
+    │   ├── validation.jsonl                   # 50条safe输出
+    │   └── test.jsonl                         # 50条safe输出
+    └── report.json                            # 配对、策略分布、结构偏移和输出hash
 ```
 
 ## 3. 生成、清洗和转换流程
 
-1. 读取一个Step 2 unsafe row及对应metadata anchors；
-2. 锁定不得修改的Profile、Tools、用户任务、风险进入前缀、关键实体、权限和风险来源；
-3. 从`rewrite_start_event`开始生成两个safe候选，优先采用不同策略；
+1. 读取一个Step 2 unsafe row，包括完整Profile、Tools、Trajectory和RS/FM/RWH；
+2. 生成器先识别需要改变的危险决策位置，同时锁定不得修改的Profile、Tools、用户任务、关键实体和已有事实；
+3. 从识别出的改写位置生成两个safe候选，优先采用不同策略；
 4. 对候选执行JSON schema、事件顺序、工具调用、参数和反馈引用检查；
 5. 检查原unsafe action及等价危险行为已经消失，且安全干预发生在其之前；
 6. 使用独立模型检查风险是否被识别和中和、benign目标是否尽量保留、环境结果是否可信；
 7. 两个候选都通过时，按改写最少、行为具体、事实一致、策略分布和结构接近程度选择；
 8. 两个候选均失败时再生成一次；仍失败则向Step 2提交同分层replacement request；
 9. 将选中候选转换为统一9字段canonical row，写入safe component split；
-10. 将生成模型、prompt、候选、diff、策略、检查和审核写入metadata与lineage。
+10. 将生成模型、prompt版本、候选、diff、策略、检查和parent关系写入`intermediate/candidates.jsonl`，将总体统计写入`report.json`。
 
 禁止通过以下方式制造safe：删除整个风险上下文、等待危险工具报错、只删末尾Complete、在Complete中虚假声称成功，或修改工具description消除风险。
 
@@ -173,10 +167,10 @@ data/agentdog/1.5/coarse-grained/sft/
 | `trajectory` | parent trajectory + 生成候选 | 风险前缀保留，从rewrite point开始替换为safe决策与后续事件 |
 | `target.type` | 当前任务 | 固定`judge` |
 | `target.coarse` | 生成目标 + 行为复核 | 固定`safe`，但必须通过独立检查器确认 |
-| 三个细粒度字段 | 不作为safe gold | 固定为`null`；parent标签转存metadata `risk_context` |
+| 三个细粒度字段 | 不作为safe gold | 固定为`null`；parent标签转存候选记录的`risk_context` |
 | `target.cot` | 不存在 | 固定为`null`，Step 4生成 |
 
-metadata的`risk_context`至少包含parent的RS/FM/RWH、三个anchor、采用的safe策略、preserve constraints和parent/child event diff。
+候选记录的`risk_context`至少包含parent的RS/FM/RWH、生成时识别的改写位置、采用的safe策略、preserve constraints和parent/child event diff。这些是Step 3的生成记录，不是训练标签。
 
 ## 5. 生成与选择标准
 
@@ -213,7 +207,7 @@ metadata的`risk_context`至少包含parent的RS/FM/RWH、三个anchor、采用�
 
 - 输出400/50/50，每个Step 2 parent恰好对应一个safe twin；
 - 每对共享group、pair、split、Profile和Tools，且`source.parent_id`正确；
-- safe三维target全部为`null`，parent风险配置完整保存在metadata；
+- safe三维target全部为`null`，parent风险配置完整保存在`intermediate/candidates.jsonl`；
 - 全部候选通过rule/model check和pair consistency检查；
 - Validation和Test全部人工审核，Train每个RS随机审核20%；
 - 安全策略覆盖与上限达标，无明显长度、调用、error或Complete标签捷径；

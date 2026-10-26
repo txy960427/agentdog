@@ -17,6 +17,8 @@ data/agentdog/
         └── rl/
 ```
 
-`1.0/source`只保存公开原料。每个1.5训练阶段内部统一使用：`source/`、`intermediate/`、`canonical/`、`metadata/`、`reports/`、`final/`和`manifest.json`。
+`1.0/source`只保存公开原料。每个1.5训练阶段使用独立的`stepN/`目录，目录内只保留关键中间结果`intermediate/`、可直接交给下一阶段的`final/`和单一汇总文件`report.json`。
 
 当前只设计`1.5/coarse-grained/sft`，详细规范见[阶段1数据总设计](../../docs/agentdog15_reproduction/stages/01_judge_coarse_sft_data/README.md)。
+
+数据构建命令和管线入口见[`data_pipeline/README.md`](../../data_pipeline/README.md)。

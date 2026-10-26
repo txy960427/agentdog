@@ -5,7 +5,6 @@
   "seed": 42,
   "group_near_threshold": 0.88,
   "benchmark_near_threshold": 0.92,
-  "features_format": "parquet",
   "quotas": {
     "train": {"safe": 100, "unsafe": 100},
     "validation": {"safe": 12, "unsafe": 13},

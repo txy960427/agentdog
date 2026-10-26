@@ -763,32 +763,20 @@ def arguments() -> argparse.Namespace:
         default=HERE / "runs",
         help="Directory for local eval dumps. Must not be baseline_run (curated snapshots only).",
     )
+    # Client-side only. Engine flags (TP, dtype, GPU util, KV offload, …) belong on
+    # ``vllm serve`` via run_benchmark.sh; they are not forwarded here.
     parser.add_argument(
-        "--batch-size",
+        "--max-model-len",
+        type=int,
+        default=65536,
+        help="Must match the running server; used for prompt budget and truncation checks",
+    )
+    parser.add_argument(
+        "--max-num-seqs",
         type=int,
         default=8,
-        help="Accepted for compatibility. The whole benchmark is submitted in one generate call; concurrency is --max-num-seqs.",
+        help="Completion request chunk size; match the server scheduler max_num_seqs",
     )
-    parser.add_argument("--tensor-parallel-size", type=int, default=1)
-    parser.add_argument(
-        "--dtype", default="bfloat16", choices=("auto", "bfloat16", "float16")
-    )
-    parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
-    parser.add_argument("--max-model-len", type=int, default=65536)
-    parser.add_argument("--max-num-seqs", type=int, default=8)
-    parser.add_argument("--max-num-batched-tokens", type=int, default=8192)
-    parser.add_argument(
-        "--swap-space",
-        type=int,
-        default=4,
-        help="CPU KV offload buffer per GPU in GiB; passed to vLLM as kv_offloading_size",
-    )
-    parser.add_argument("--cpu-offload-gb", type=float, default=0.0)
-    parser.add_argument(
-        "--enable-chunked-prefill", action=argparse.BooleanOptionalAction, default=True
-    )
-    parser.add_argument("--enable-prefix-caching", action="store_true")
-    parser.add_argument("--enforce-eager", action="store_true")
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument(
         "--prompt-overflow", choices=("truncate", "error"), default="truncate"
@@ -805,25 +793,16 @@ def arguments() -> argparse.Namespace:
         help="build inputs and run records without loading a model",
     )
     args = parser.parse_args()
-    if (
-        min(args.batch_size, args.max_num_seqs, args.max_tokens) < 1
-        or args.max_model_len <= args.max_tokens
-    ):
+    if min(args.max_num_seqs, args.max_tokens) < 1 or args.max_model_len <= args.max_tokens:
         parser.error(
-            "batch-size, max-num-seqs, and max-tokens must be positive; max-model-len must be larger"
+            "max-num-seqs and max-tokens must be positive; max-model-len must be larger"
         )
-    if not 0 < args.gpu_memory_utilization <= 1:
-        parser.error("gpu-memory-utilization must be in (0, 1]")
-    if args.swap_space < 0 or args.cpu_offload_gb < 0:
-        parser.error("swap-space and cpu-offload-gb cannot be negative")
     if args.limit is not None and args.limit < 1:
         parser.error("limit must be positive")
     if args.task == "fine" and args.benchmark not in ("atbench", "all"):
         parser.error(
             "fine-grained diagnosis is reported on ATBench only; use --benchmark atbench or all"
         )
-    if args.max_num_batched_tokens is not None and args.max_num_batched_tokens < 1:
-        parser.error("max-num-batched-tokens must be positive")
     runs_dir = args.runs_dir.expanduser().resolve()
     baseline_dir = BASELINE_RUN_DIR.resolve()
     if runs_dir == baseline_dir or baseline_dir in runs_dir.parents:

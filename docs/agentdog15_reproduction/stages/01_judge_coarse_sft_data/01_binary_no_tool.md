@@ -84,23 +84,14 @@ data/
     ├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
     │   └── AgentDoG-BinarySafety/train.json
     └── 1.5/coarse-grained/sft/
-        ├── source/source_manifest.json
-        ├── intermediate/binary/
-        │   ├── unique.jsonl                   # 精确去重后的2,000条
-        │   ├── quarantine.jsonl               # 解析或标签检查失败
-        │   ├── groups.jsonl                   # id到group_id映射
-        │   └── features.parquet               # 抽样特征
-        ├── canonical/components/
-        │   ├── binary_train.jsonl             # 200条
-        │   ├── binary_validation.jsonl        # 25条
-        │   └── binary_test.jsonl              # 25条
-        ├── metadata/binary.jsonl              # hash、抽样标签和审核记录
-        └── reports/
-            ├── binary_dedup.json
-            ├── binary_grouping.json
-            ├── binary_benchmark_overlap.json
-            ├── binary_sampling.json
-            └── binary_leakage_check.json
+        └── step1/
+            ├── intermediate/
+            │   └── cleaned.jsonl              # 精确去重并解析后的2,000条
+            ├── final/
+            │   ├── train.jsonl                # 200条
+            │   ├── validation.jsonl           # 25条
+            │   └── test.jsonl                 # 25条
+            └── report.json                    # 来源、去重、分组、抽样、泄漏和hash
 ```
 
 ## 3. 清洗和转换流程
@@ -116,7 +107,7 @@ data/
 9. 计算长度、调用数、工具名、error、Complete和action格式等可直接观测的抽样特征；
 10. 按第5节规则选择250条并分配split，输出统一canonical JSONL。
 
-raw instruction始终保留在只读原始文件中；需要复盘的raw hash和parser版本写入metadata，不复制到训练row。
+raw instruction始终保留在只读原始文件中；输入文件hash和parser版本写入`report.json`，不复制到训练row。
 
 ## 4. 原始字段到统一字段的映射
 
@@ -137,7 +128,7 @@ raw instruction始终保留在只读原始文件中；需要复盘的raw hash和
 | 三个细粒度字段 | 不存在 | 固定为`null`，本Step不补标RS/FM/RWH |
 | `target.cot` | 不存在 | 固定为`null`，Step 4生成 |
 
-metadata只保存`raw_hash`、`trajectory_hash`、grouping依据、可观测结构特征、抽样得分和入选原因。
+构建期hash、grouping依据、可观测结构特征和抽样统计集中写入`report.json`；不再为每一种统计单独生成文件。
 
 ## 5. 分层抽样规则
 
@@ -172,7 +163,7 @@ metadata只保存`raw_hash`、`trajectory_hash`、grouping依据、可观测结�
 - 每条canonical row只有统一9字段，`tools=null`，`cot=null`；
 - benchmark近重复为0；
 - 相同group不跨split，长度、调用数、error、Complete和action格式分布报告完整；
-- 通过后冻结本Step manifest，Step 2复用相同ID、parser、group和split实现。
+- 通过后冻结本Step的`report.json`及输出hash，Step 2复用相同ID、parser、group和split实现。
 
 本Step不生成CoT；CoT和最终SFT row由[Step 4](04_cot_and_sft_export.md)生成。
 
@@ -182,16 +173,25 @@ metadata只保存`raw_hash`、`trajectory_hash`、grouping依据、可观测结�
 
 ```text
 data_pipeline/agentdog/1.5/coarse-grained/sft/
-├── step1_binary.py
-└── configs/step1_binary.yaml
+├── pipeline.py                     # 多阶段唯一入口
+├── run_pipeline.sh
+└── steps/
+    └── step1/
+        ├── config.json
+        ├── pipeline.py             # Step 1内部流程
+        ├── source.py               # 清洗、解析、去重和特征
+        ├── overlap.py              # 场景分组和benchmark排重
+        └── sampling.py             # 分层抽样、报告和验收
 ```
 
-预期运行方式：
+推荐运行方式：
 
 ```bash
-python data_pipeline/agentdog/1.5/coarse-grained/sft/step1_binary.py
+python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
 ```
 
-输入、输出、benchmark路径、seed、阈值和固定split配额集中在`configs/step1_binary.yaml`。该文件采用JSON语法，因此同时是合法YAML，脚本无需额外依赖PyYAML。命令行参数可覆盖路径、seed和阈值。默认写`features.parquet`；安装verl依赖后已经包含所需的`pyarrow`。
+完整执行说明见[`data_pipeline/README.md`](../../../../data_pipeline/README.md)。
 
-本Step不调用LLM标注器、不补RS/FM/RWH、不重新判断公开safe/unsafe标签，也不设置人工审核环节。脚本遇到格式损坏或无法解析的记录直接写入`quarantine.jsonl`并在报告中计数；只要最终数量和分层约束能够满足，Step 1即可自动完成。人工抽查可以作为可选审计，但不是流水线依赖，也不改变数据。
+Step 1的固定路径、seed、阈值和split配额集中在`steps/step1/config.json`。总入口只接收阶段名；使用`step1`运行本阶段，使用`all`按顺序运行所有已实现阶段。
+
+本Step不调用LLM标注器、不补RS/FM/RWH、不重新判断公开safe/unsafe标签，也不设置人工审核环节。格式损坏或无法解析的记录只在`report.json`的`quarantine`字段中记录；只要出现这类记录，硬验收便停止最终导出。人工抽查可以作为可选审计，但不是流水线依赖，也不改变数据。

@@ -187,17 +187,6 @@ if [[ "$DRY_RUN" != "1" && ! -d "$MODEL_PATH" ]]; then
   exit 1
 fi
 
-EXTRA_ARGS=()
-[[ -n "$MAX_NUM_BATCHED_TOKENS" ]] && EXTRA_ARGS+=(--max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS")
-if [[ "$ENABLE_CHUNKED_PREFILL" == "1" ]]; then
-  EXTRA_ARGS+=(--enable-chunked-prefill)
-else
-  EXTRA_ARGS+=(--no-enable-chunked-prefill)
-fi
-[[ "$ENABLE_PREFIX_CACHING" == "1" ]] && EXTRA_ARGS+=(--enable-prefix-caching)
-[[ "$ENFORCE_EAGER" == "1" ]] && EXTRA_ARGS+=(--enforce-eager)
-[[ "$TRUST_REMOTE_CODE" == "1" ]] && EXTRA_ARGS+=(--trust-remote-code)
-
 export CUDA_VISIBLE_DEVICES
 BASE_URL="http://127.0.0.1:${PORT}"
 
@@ -237,29 +226,25 @@ if [[ "$MODE" == "serve" ]]; then
   exec vllm serve "$MODEL_PATH" "${SERVE_ARGS[@]}" "$@"
 fi
 
+EVAL_ARGS=()
+[[ "$TRUST_REMOTE_CODE" == "1" ]] && EVAL_ARGS+=(--trust-remote-code)
+
 echo "task=$TASK_NAME benchmark=$BENCHMARK model_size=$MODEL_SIZE model=$MODEL_PATH server=$BASE_URL"
-echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES tensor_parallel_size=$TENSOR_PARALLEL_SIZE"
-echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
-echo "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS"
-echo "max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS chunked_prefill=$ENABLE_CHUNKED_PREFILL dtype=$DTYPE"
+echo "max_model_len=$MAX_MODEL_LEN max_tokens=$MAX_TOKENS max_num_seqs=$MAX_NUM_SEQS overflow=$PROMPT_OVERFLOW/$TRUNCATION_SIDE"
+echo "(engine flags TP/dtype/GPU util/offload/chunked-prefill were set when you started serve)"
 
 cd "$PROJECT_ROOT"
 exec python judge_eval/eval.py \
   --benchmark "$BENCHMARK" \
   --base-url "$BASE_URL" \
   --model "$MODEL_PATH" \
-  --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
-  --dtype "$DTYPE" \
   --seed "$SEED" \
-  --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
   --max-model-len "$MAX_MODEL_LEN" \
   --max-tokens "$MAX_TOKENS" \
   --max-num-seqs "$MAX_NUM_SEQS" \
-  --swap-space "$SWAP_SPACE" \
-  --cpu-offload-gb "$CPU_OFFLOAD_GB" \
   --prompt-overflow "$PROMPT_OVERFLOW" \
   --truncation-side "$TRUNCATION_SIDE" \
   "${TASK_ARGS[@]}" \
   "${RUNS_ARGS[@]}" \
-  "${EXTRA_ARGS[@]}" \
+  "${EVAL_ARGS[@]}" \
   "$@"

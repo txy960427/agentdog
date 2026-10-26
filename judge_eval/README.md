@@ -157,7 +157,7 @@ bash judge_eval/run_benchmark.sh 4B coarse atbench --limit 8
 
 ## 5. 调节 vLLM 和长输入参数
 
-所有常用参数都集中在 `run_benchmark.sh` 顶部。直接修改变量值，脚本下半部分会把它们传给 `eval.py`：
+所有常用参数都集中在 `run_benchmark.sh` 顶部。改 `MAX_MODEL_LEN`、`MAX_NUM_SEQS`、`GPU_MEMORY_UTILIZATION`、TP/dtype/offload 等引擎参数后需重启 `serve`；`coarse` / `fine` 只把客户端参数（`max-model-len`、`max-tokens`、`max-num-seqs`、截断、seed）传给 `eval.py`：
 
 参数语义可对照 [vLLM 0.29 Engine Arguments](https://docs.vllm.ai/en/v0.29.0/configuration/engine_args/)；本仓库当前 `vllm` extra 固定到 0.29.0。
 

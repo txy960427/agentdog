@@ -104,9 +104,9 @@ Step 4  为三个split生成CoT并导出messages
 }
 ```
 
-统一字段只有9个：`id`、`group_id`、`pair_id`、`split`、`source`、`profile`、`tools`、`trajectory`、`target`。事件采用最小字段：user/environment使用`role + content`，agent使用`role + thought + action`。无法进入训练输入的审计信息放在独立`metadata.jsonl`，不继续扩张canonical row。
+统一字段只有9个：`id`、`group_id`、`pair_id`、`split`、`source`、`profile`、`tools`、`trajectory`、`target`。事件采用最小字段：user/environment使用`role + content`，agent使用`role + thought + action`。无法进入训练输入的逐条审计信息跟随本Step的关键中间文件保存，汇总统计进入`report.json`，不继续扩张canonical row。
 
-safe row的三维标签为`null`；其继承的风险配置只保存在metadata的`risk_context`中，不能伪装成safe样本的细粒度gold label。
+safe row的三维标签为`null`；其继承的风险配置只保存在Step 3 `intermediate/candidates.jsonl`的`risk_context`中，不能伪装成safe样本的细粒度gold label。
 
 ## 5. Split与防泄漏规则
 
@@ -135,20 +135,22 @@ data/agentdog/
 └── 1.5/
     ├── coarse-grained/
     │   └── sft/
-    │       ├── source/                        # source manifest，不复制原料
-    │       ├── intermediate/
-    │       │   ├── binary/
-    │       │   ├── tool-unsafe/
-    │       │   ├── tool-safe/
-    │       │   └── cot/
-    │       ├── canonical/components/
-    │       ├── metadata/
-    │       ├── reports/
-    │       ├── final/
-    │       │   ├── train.parquet
-    │       │   ├── validation.parquet
-    │       │   └── test.parquet
-    │       └── manifest.json
+    │       ├── step1/                         # Binary清洗、抽样和切分
+    │       │   ├── intermediate/
+    │       │   ├── final/
+    │       │   └── report.json
+    │       ├── step2/                         # 带工具unsafe清洗、抽样和切分
+    │       │   ├── intermediate/
+    │       │   ├── final/
+    │       │   └── report.json
+    │       ├── step3/                         # 带工具safe twin生成
+    │       │   ├── intermediate/
+    │       │   ├── final/
+    │       │   └── report.json
+    │       └── step4/                         # CoT生成和SFT导出
+    │           ├── intermediate/
+    │           ├── final/
+    │           └── report.json
     ├── fine-grained/
     │   ├── sft/                               # 待规划
     │   └── gdpo/                              # 待规划

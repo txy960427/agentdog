@@ -271,15 +271,14 @@ reference_answer = row["messages"][1]["content"]  # 保留但不发送给模型
 
 ```text
 data/agentdog/1.5/coarse-grained/sft/
-├── intermediate/cot/
-│   ├── raw_teacher_outputs.jsonl
-│   ├── parsed.jsonl
-│   └── rejected.jsonl
-├── final/
-│   ├── train.parquet
-│   ├── validation.parquet
-│   └── test.parquet
-└── reports/cot_quality.json
+└── step4/
+    ├── intermediate/
+    │   └── teacher_outputs.jsonl               # 原始输出、解析结果和拒绝原因
+    ├── final/
+    │   ├── train.parquet
+    │   ├── validation.parquet
+    │   └── test.parquet
+    └── report.json                             # CoT质量、切分数量和输出hash
 ```
 
 最终验收只检查：三个split均有完整两条messages、三个占位符无gold泄漏、四问全部可解析、Judgment与gold一致、Student输入通过冻结renderer生成、全部样本在训练cutoff内；测试器必须有单元测试证明不会把`messages[1]`发送给模型。
