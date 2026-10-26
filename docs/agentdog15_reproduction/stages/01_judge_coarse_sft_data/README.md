@@ -31,33 +31,36 @@ Train、Validation和Internal Test最终都导出为Parquet，每行采用相同
 
 | 数据组件 | Train | Validation | Internal Test |
 |---|---:|---:|---:|
-| Binary无显式工具列表safe | 100 | 12 | 13 |
-| Binary无显式工具列表unsafe | 100 | 13 | 12 |
-| FineGrained带工具unsafe | 400 | 50 | 50 |
-| 生成的带工具safe twin | 400 | 50 | 50 |
-| **合计** | **1,000** | **125** | **125** |
+| Binary无显式工具列表safe | 100 | 25 | 25 |
+| Binary无显式工具列表unsafe | 100 | 25 | 25 |
+| FineGrained带工具unsafe | 400 | 100 | 100 |
+| 生成的带工具safe twin | 400 | 100 | 100 |
+| **合计** | **1,000** | **250** | **250** |
 
-Train严格为500 safe和500 unsafe。Validation为62 safe、63 unsafe；Internal Test为63 safe、62 unsafe。外部R-Judge和ATBench不计入这1,250条。
+三个split内部都保持safe/unsafe严格平衡。FineGrained记录保留RS、FM、RWH三个标签，粗粒度训练读取`coarse`，后续细粒度训练读取三维标签。
 
-## 3. 四步数据流水线
+## 3. 五步数据流水线
 
 ```text
-Step 1  BinarySafety清洗与抽样
-        → 200 Train / 25 Validation / 25 Test
+Step 0  统一解析两个来源、跨来源分组、采样和split冻结
+        → 900条parent selection manifest
 
-Step 2  FineGrained带工具unsafe清洗与抽样
-        → 400 Train / 50 Validation / 50 Test
+Step 1  按Step 0清单转换BinarySafety
+        → 200 Train / 50 Validation / 50 Test
+
+Step 2  按Step 0清单转换FineGrained带工具unsafe
+        → 400 Train / 100 Validation / 100 Test
 
 Step 3  对Step 2逐条生成safe twin
-        → 400 Train / 50 Validation / 50 Test
+        → 400 Train / 100 Validation / 100 Test
 
 Step 4  为三个split生成CoT并导出messages
         → train.parquet / validation.parquet / test.parquet
 ```
 
-前三步只生成无CoT的统一canonical row。Step 4读取canonical row，生成最终user prompt和assistant监督答案。
+Step 0是唯一允许采样和分配split的阶段。Step 1和Step 2只按冻结清单物化canonical row，Step 3逐条继承parent，Step 4生成最终user prompt和assistant监督答案。
 
-## 4. 前三步统一输出的canonical格式
+## 4. Step 1至Step 3统一输出的canonical格式
 
 ```json
 {
@@ -110,12 +113,16 @@ safe row的三维标签为`null`；其继承的风险配置只保存在Step 3 `i
 
 ## 5. Split与防泄漏规则
 
-1. 精确去重和近重复grouping完成后再切分；
-2. `group_id`和`pair_id`均不得跨split；
-3. Step 3 safe twin继承Step 2 parent的split；
-4. benchmark只用于近重复排除和最终外部测试；
-5. CoT不能参与去重、grouping或split；
-6. Internal Test在数据、prompt和checkpoint选择规则冻结后只运行一次。
+1. Step 0先用共享parser建立BinarySafety与FineGrained的统一候选索引；
+2. 两个来源必须跨来源去重和grouping，再给每个全局group分配唯一split；
+3. Step 1和Step 2不能重新抽样、重新分组或修改split；
+4. `group_id`和`pair_id`均不得跨split；
+5. Step 3 safe twin继承Step 2 parent的group、pair和split；
+6. benchmark只用于近重复排除和最终外部测试；
+7. CoT不能参与去重、grouping或split；
+8. Internal Test在数据、prompt和checkpoint选择规则冻结后只运行一次。
+
+Step 0必须在模型训练、算法工程、数据工程和数据分析四个视角全部通过后才能写出正式选择清单。详细配额、分布目标和验收规则见[Step 0](00_global_selection.md)。
 
 ## 6. Renderer与CoT契约
 
@@ -135,11 +142,15 @@ data/agentdog/
 └── 1.5/
     ├── coarse-grained/
     │   └── sft/
-    │       ├── step1/                         # Binary清洗、抽样和切分
+    │       ├── step0/                         # 全局候选、分组、采样和切分
     │       │   ├── intermediate/
     │       │   ├── final/
     │       │   └── report.json
-    │       ├── step2/                         # 带工具unsafe清洗、抽样和切分
+    │       ├── step1/                         # 按清单转换Binary数据
+    │       │   ├── intermediate/
+    │       │   ├── final/
+    │       │   └── report.json
+    │       ├── step2/                         # 按清单转换带工具unsafe
     │       │   ├── intermediate/
     │       │   ├── final/
     │       │   └── report.json
@@ -165,9 +176,10 @@ data/agentdog/
 data_pipeline/agentdog/1.5/coarse-grained/sft/
 ```
 
-1. [Step 1：BinarySafety清洗与抽样](01_binary_no_tool.md)
-2. [Step 2：带工具unsafe清洗与抽样](02_tool_unsafe.md)
-3. [Step 3：带工具safe twin生成](03_tool_safe.md)
-4. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
+1. [Step 0：全局候选池、采样与切分](00_global_selection.md)
+2. [Step 1：按清单转换BinarySafety](01_binary_no_tool.md)
+3. [Step 2：按清单转换带工具unsafe](02_tool_unsafe.md)
+4. [Step 3：带工具safe twin生成](03_tool_safe.md)
+5. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
 
 论文依据统一见[证据索引](../../evidence.md)。

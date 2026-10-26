@@ -72,40 +72,44 @@ data/agentdog/
 
 | Split | 条数 | 比例 | 用途 |
 |---|---:|---:|---|
-| Train | 1,000 | 80% | 参数训练 |
-| Validation | 125 | 10% | 选择epoch、checkpoint和数据版本 |
-| Internal Test | 125 | 10% | 所有规则冻结后做一次同分布测试 |
-| **合计** | **1,250** | **100%** |  |
+| Train | 1,000 | 66.7% | 参数训练 |
+| Validation | 250 | 16.7% | 选择epoch、checkpoint和数据版本 |
+| Internal Test | 250 | 16.7% | 所有规则冻结后做一次同分布测试 |
+| **合计** | **1,500** | **100%** |  |
 
-论文披露的是roughly 1k训练样本，所以1,000对应Train，而不是Train、Validation和Test三者总和。正式论文指标另外在R-Judge和ATBench上测试，外部benchmark不计入这1,250条。
+论文披露的是roughly 1k训练样本，所以1,000对应Train。Validation和Internal Test各250条，整体按8:2:2构建。正式论文指标另外在R-Judge和ATBench上测试。
 
 #### 4.1.2 数据组成
 
 | 数据组件 | Train | Validation | Internal Test | 来源与构造方式 |
 |---|---:|---:|---:|---|
-| 无显式工具列表safe | 100 | 12 | 13 | v1.0 BinarySafety去重、清洗和分层抽样 |
-| 无显式工具列表unsafe | 100 | 13 | 12 | v1.0 BinarySafety去重、清洗和分层抽样 |
-| 带工具unsafe | 400 | 50 | 50 | v1.0 FineGrainedTaxonomy清洗和分层抽样 |
-| 带工具safe | 400 | 50 | 50 | 对带工具unsafe逐条生成一一对应safe twin |
-| **合计** | **1,000** | **125** | **125** |  |
+| 无显式工具列表safe | 100 | 25 | 25 | v1.0 BinarySafety去重、清洗和分层抽样 |
+| 无显式工具列表unsafe | 100 | 25 | 25 | v1.0 BinarySafety去重、清洗和分层抽样 |
+| 带工具unsafe | 400 | 100 | 100 | v1.0 FineGrainedTaxonomy清洗和分层抽样，保留RS/FM/RWH |
+| 带工具safe | 400 | 100 | 100 | 对带工具unsafe逐条生成一一对应safe twin |
+| **合计** | **1,000** | **250** | **250** |  |
 
-Train严格保持500 safe和500 unsafe。Validation为62 safe、63 unsafe；Internal Test为63 safe、62 unsafe，两个非训练split合计后标签严格平衡。
+三个split内部都保持safe/unsafe严格平衡。FineGrained的RS、FM、RWH三个标签同时保留，供后续细粒度SFT和GDPO复用。
 
 #### 4.1.3 数据构建步骤
 
-1. 清洗和抽样v1.0 BinarySafety，构造无显式工具列表的safe/unsafe部分；
-2. 清洗和抽样v1.0 FineGrainedTaxonomy，构造带工具unsafe部分；
-3. 对每条带工具unsafe轨迹生成一个同场景、同工具、同split的safe twin；
-4. 对Train、Validation和Internal Test统一生成四问CoT，组装相同结构的完整参考答案；测试时只取user消息推理，不把参考assistant消息送给模型。
+1. Step 0统一解析BinarySafety和FineGrainedTaxonomy，跨来源去重和grouping，排除benchmark近重复，冻结900条parent及其split；
+2. Step 1按冻结清单转换300条BinarySafety，构造无显式工具列表的safe/unsafe部分，不再抽样；
+3. Step 2按冻结清单转换600条FineGrainedTaxonomy，构造带工具unsafe部分并保留三维标签，不再抽样；
+4. Step 3对每条带工具unsafe轨迹生成一个同场景、同工具、同split的safe twin；
+5. Step 4对Train、Validation和Internal Test统一生成四问CoT，组装相同结构的完整参考答案；测试时只取user消息推理，不把参考assistant消息送给模型。
+
+Step 0是本阶段唯一允许采样和分配split的阶段。它必须从模型训练、算法工程、数据工程和数据分析四个视角完成验收；任何跨阶段近重复落入不同split时都不得进入下游。
 
 下一级设计文档：
 
 1. [阶段1总设计](stages/01_judge_coarse_sft_data/README.md)
-2. [BinarySafety清洗与抽样](stages/01_judge_coarse_sft_data/01_binary_no_tool.md)
-3. [带工具unsafe清洗与抽样](stages/01_judge_coarse_sft_data/02_tool_unsafe.md)
-4. [带工具safe twin生成](stages/01_judge_coarse_sft_data/03_tool_safe.md)
-5. [CoT生成、占位符、解析与SFT导出](stages/01_judge_coarse_sft_data/04_cot_and_sft_export.md)
-6. [最终粗粒度CoT Teacher Prompt](stages/01_judge_coarse_sft_data/prompts/coarse_cot_teacher.txt)
+2. [全局候选池、采样与切分](stages/01_judge_coarse_sft_data/00_global_selection.md)
+3. [按清单转换BinarySafety](stages/01_judge_coarse_sft_data/01_binary_no_tool.md)
+4. [按清单转换带工具unsafe](stages/01_judge_coarse_sft_data/02_tool_unsafe.md)
+5. [带工具safe twin生成](stages/01_judge_coarse_sft_data/03_tool_safe.md)
+6. [CoT生成、占位符、解析与SFT导出](stages/01_judge_coarse_sft_data/04_cot_and_sft_export.md)
+7. [最终粗粒度CoT Teacher Prompt](stages/01_judge_coarse_sft_data/prompts/coarse_cot_teacher.txt)
 
 #### 4.1.4 最终数据格式
 

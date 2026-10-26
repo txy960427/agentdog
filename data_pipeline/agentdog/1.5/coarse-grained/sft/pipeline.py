@@ -4,17 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 
-from steps.step1.pipeline import run as run_step1
-from steps.step1.source import PipelineError
-from steps.step2.pipeline import run as run_step2
+from steps.step0.pipeline import run as run_step0
+from steps.step0.source import PipelineError
 
-# 新阶段完成后只需按顺序追加到这里；用户始终运行同一个入口。
 STAGES = {
-    "step1": ("Step 1 - BinarySafety", run_step1),
-    "step2": ("Step 2 - Tool unsafe", run_step2),
+    "step0": ("Step 0 - Global selection", run_step0),
 }
 
 
@@ -32,7 +28,7 @@ def main() -> int:
         for _, (name, stage) in selected:
             print(f"\n=== {name} ===")
             stage()
-    except (PipelineError, KeyError, OSError, json.JSONDecodeError) as exc:
+    except (PipelineError, KeyError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     return 0

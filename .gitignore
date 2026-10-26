@@ -61,3 +61,5 @@ wandb/
 /judge_eval/runs/
 /_setup_downloads/
 /tmp/
+AGENTS.md
+specs/*

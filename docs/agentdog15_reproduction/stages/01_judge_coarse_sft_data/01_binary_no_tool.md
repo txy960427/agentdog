@@ -1,19 +1,23 @@
-# Step 1：BinarySafety清洗、转换与分层抽样
+# Step 1：按Step 0清单转换BinarySafety
+
+> 状态：仅保留设计，代码将在Step 0冻结后实现。
 
 ## 1. 当前阶段的目标、来源和目标数据
 
 ### 1.1 当前目标
 
-从v1.0 BinarySafety中构造无显式工具schema的粗粒度safe/unsafe数据：
+读取Step 0冻结的300条BinarySafety选择记录，回查v1.0原料并转换成无显式工具schema的粗粒度safe/unsafe canonical数据：
 
 | Split | safe | unsafe | 合计 |
 |---|---:|---:|---:|
 | Train | 100 | 100 | 200 |
-| Validation | 12 | 13 | 25 |
-| Internal Test | 13 | 12 | 25 |
-| **合计** | **125** | **125** | **250** |
+| Validation | 25 | 25 | 50 |
+| Internal Test | 25 | 25 | 50 |
+| **合计** | **150** | **150** | **300** |
 
 “无显式工具列表”表示原始记录没有`Available Tools` schema；轨迹中仍可能存在tool action。canonical `tools`固定为`null`，最终renderer只能从真实action提取工具名，不能虚构description或parameters。
+
+本Step不抽样、不生成`group_id`、不决定split。`id/group_id/split`必须与Step 0 `selection.jsonl`逐条一致。
 
 ### 1.2 原始数据来源
 
@@ -84,28 +88,27 @@ data/
     ├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
     │   └── AgentDoG-BinarySafety/train.json
     └── 1.5/coarse-grained/sft/
+        ├── step0/final/selection.jsonl         # 输入：冻结选择与split
         └── step1/
             ├── intermediate/
-            │   └── cleaned.jsonl              # 精确去重并解析后的2,000条
+            │   └── materialized.jsonl          # 300条解析结果与manifest核验状态
             ├── final/
-            │   ├── train.jsonl                # 200条
-            │   ├── validation.jsonl           # 25条
-            │   └── test.jsonl                 # 25条
-            └── report.json                    # 来源、去重、分组、抽样、泄漏和hash
+            │   ├── train.jsonl                 # 200条
+            │   ├── validation.jsonl            # 25条
+            │   └── test.jsonl                  # 25条
+            └── report.json                    # 转换、manifest一致性和输出hash
 ```
 
 ## 3. 清洗和转换流程
 
-1. 读取JSON数组，校验每条恰好包含`instruction/input/output`；
-2. 要求`input`为空，`output`严格为`safe`或`unsafe`；
-3. 从`instruction`提取`<BEGIN TRAJECTORY>...<END TRAJECTORY>`；外层task、taxonomy和output说明不进入canonical row；
-4. 从trajectory提取Agent Profile和Conversation History；Binary不存在可用tool schema，因此`tools=null`；
-5. 按`[USER]`、`[AGENT]`、`[THOUGHT]`、`[ACTION]`、`[ENVIRONMENT]`解析为事件数组；保留事件顺序；
-6. 对原始记录、提取后trajectory和规范化action分别计算hash，完成精确去重；
-7. 根据用户任务、工具调用序列和关键环境结果生成场景签名，将模板近重复归入同一`group_id`；
-8. 与R-Judge、ATBench做近重复排除；只输出匹配报告；
-9. 计算长度、调用数、工具名、error、Complete和action格式等可直接观测的抽样特征；
-10. 按第5节规则选择250条并分配split，输出统一canonical JSONL。
+1. 读取Step 0 `selection.jsonl`中`stage=step1`的300条记录；
+2. 按`source_row_id`读取BinarySafety原始行，重新计算`raw_hash`并与清单核对；
+3. 复用Step 0共享parser，校验`instruction/input/output`、轨迹边界和公开safe/unsafe标签；
+4. 从`instruction`提取Profile与Conversation；外层task、taxonomy和output说明不进入canonical row；
+5. 按`[USER]`、`[AGENT]`、`[THOUGHT]`、`[ACTION]`、`[ENVIRONMENT]`解析保序事件；
+6. Binary不存在可用tool schema，因此`tools=null`；轨迹中的真实tool action保持不变；
+7. 从Step 0原样复制`id/group_id/split`，`pair_id`固定为`null`；
+8. 按split输出统一canonical JSONL，并报告manifest一致性与文件hash。
 
 raw instruction始终保留在只读原始文件中；输入文件hash和parser版本写入`report.json`，不复制到训练row。
 
@@ -114,9 +117,9 @@ raw instruction始终保留在只读原始文件中；输入文件hash和parser�
 | 统一字段 | Binary原始来源 | 转换规则 |
 |---|---|---|
 | `id` | 原始行号 + 轨迹hash | 生成稳定ID；重复记录共享内容hash但只保留一条 |
-| `group_id` | 用户任务、调用序列、环境关键结果 | 规范化实体后生成场景签名，再做近重复聚类 |
+| `group_id` | Step 0选择清单 | 原样复制，不在本Step重新聚类 |
 | `pair_id` | 无 | 固定为`null` |
-| `split` | 无 | 抽样完成后按group分配为train/validation/test |
+| `split` | Step 0选择清单 | 原样复制，不得修改 |
 | `source.dataset` | 文件配置名 | 固定`AgentDoG-BinarySafety` |
 | `source.row_id` | 原始数组索引 | 保存首个保留记录的字符串索引 |
 | `source.parent_id` | 无 | 固定为`null` |
@@ -128,48 +131,34 @@ raw instruction始终保留在只读原始文件中；输入文件hash和parser�
 | 三个细粒度字段 | 不存在 | 固定为`null`，本Step不补标RS/FM/RWH |
 | `target.cot` | 不存在 | 固定为`null`，Step 4生成 |
 
-构建期hash、grouping依据、可观测结构特征和抽样统计集中写入`report.json`；不再为每一种统计单独生成文件。
+构建期hash、manifest核验和转换统计集中写入`report.json`；全局grouping和抽样统计只由Step 0保存。
 
-## 5. 分层抽样规则
+## 5. Step 0契约
 
-### 5.1 硬约束
+Step 1不实现分层抽样。以下条件由Step 0在写出清单前保证：
 
-- Train固定100 safe + 100 unsafe；Validation固定12 safe + 13 unsafe；Test固定13 safe + 12 unsafe；
-- 相同`group_id`不得跨split；
-- 重复、benchmark近重复、格式损坏或无法解析的样本不得入选；
-- 先锁定Test，再锁定Validation，最后从剩余group选择Train。
+- Train固定100 safe + 100 unsafe；Validation和Test各25 safe + 25 unsafe；
+- 跨BinarySafety和FineGrained的相同或近重复场景不跨split；
+- 与ATBench、R-Judge近重复的记录不入选；
+- 每个label内部覆盖长度、事件数、调用数、error、Complete和action格式；
+- safe/unsafe的明显结构伪相关受到约束。
 
-### 5.2 可观测结构分层
-
-本Step不推断RS/FM/RWH，也不重新标注safe/unsafe。直接使用公开`output`作为粗粒度gold，在每个label内部按以下可计算字段分层：
-
-- token长度四分位；
-- event数和tool action数分桶；
-- 首次出现的工具名和工具序列hash；
-- 是否出现environment error；
-- 是否存在末尾Complete；
-- JSON action或文本action。
-
-每个label的Train 100条尽量在四个长度分位各取25条；Validation和Test覆盖所有长度分位。其余结构字段采用贪心覆盖，不要求不可验证的语义配额。
-
-### 5.3 结构伪相关控制
-
-比较safe/unsafe的token长度、event数、工具调用数、error、Complete和action格式。任一二值结构特征的标签比例差超过15个百分点时，以group为单位换样，不能修改轨迹内容凑分布。
+本Step只验证这些配额在物化后仍然成立，不根据验证结果自行换样。需要替换时必须返回Step 0更新选择清单并重新审查。
 
 ## 6. 验收
 
-- 4,000条原始记录精确去重后为2,000条，safe/unsafe各1,000；
-- 输出200/25/25，且group不跨split；
+- Step 0清单中恰好有300条Step 1记录，且全部raw hash与原始记录一致；
+- 输出200/50/50，safe/unsafe配额与清单一致；
 - 每条canonical row只有统一9字段，`tools=null`，`cot=null`；
-- benchmark近重复为0；
-- 相同group不跨split，长度、调用数、error、Complete和action格式分布报告完整；
-- 通过后冻结本Step的`report.json`及输出hash，Step 2复用相同ID、parser、group和split实现。
+- 每条`id/group_id/split`与Step 0完全一致；
+- 本Step没有新增、丢失、替换或重新分配记录；
+- 通过后冻结本Step的`report.json`及输出hash。
 
 本Step不生成CoT；CoT和最终SFT row由[Step 4](04_cot_and_sft_export.md)生成。
 
-## 7. 是否可以直接写脚本完成
+## 7. 管线职责
 
-可以。一个入口脚本应完成整条确定性流水线：读取、字段校验、轨迹解析、三级hash去重、近重复grouping、特征计算、benchmark排重、结构分层抽样、split分配、canonical导出和报告生成。
+一个入口脚本完成清单回读、hash核验、轨迹解析、canonical转换和报告生成。全局去重、grouping、benchmark排重、抽样和split分配属于Step 0。
 
 ```text
 data_pipeline/agentdog/1.5/coarse-grained/sft/
@@ -178,10 +167,7 @@ data_pipeline/agentdog/1.5/coarse-grained/sft/
 └── steps/
     └── step1/
         ├── config.json
-        ├── pipeline.py             # Step 1内部流程
-        ├── source.py               # 清洗、解析、去重和特征
-        ├── overlap.py              # 场景分组和benchmark排重
-        └── sampling.py             # 分层抽样、报告和验收
+        └── pipeline.py             # manifest核验和Binary canonical转换
 ```
 
 推荐运行方式：
@@ -192,6 +178,6 @@ python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
 
 完整执行说明见[`data_pipeline/README.md`](../../../../data_pipeline/README.md)。
 
-Step 1的固定路径、seed、阈值和split配额集中在`steps/step1/config.json`。总入口只接收阶段名；使用`step1`运行本阶段，使用`all`按顺序运行所有已实现阶段。
+Step 1只读取Step 0输出。单独运行`step1`时必须先验证Step 0的输入和输出hash；总入口使用`all`时从Step 0开始顺序执行。
 
 本Step不调用LLM标注器、不补RS/FM/RWH、不重新判断公开safe/unsafe标签，也不设置人工审核环节。格式损坏或无法解析的记录只在`report.json`的`quarantine`字段中记录；只要出现这类记录，硬验收便停止最终导出。人工抽查可以作为可选审计，但不是流水线依赖，也不改变数据。

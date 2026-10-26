@@ -4,7 +4,7 @@
 
 ### 1.1 当前目标
 
-对Step 2选出的每条带工具unsafe轨迹生成一个safe twin，不独立抽样：
+对Step 0选定并由Step 2物化的每条带工具unsafe轨迹生成一个safe twin，不独立抽样：
 
 | Split | Step 2 unsafe parent | 本Step safe twin |
 |---|---:|---:|
@@ -17,7 +17,7 @@ safe twin必须保留同一场景、Profile、工具列表和风险暴露，只�
 
 ### 1.2 原始数据来源
 
-本Step没有新的外部原始数据。输入是Step 2已经冻结的500条完整unsafe row：
+本Step没有新的外部原始数据。输入是Step 0已冻结选择、并由Step 2完成物化的600条完整unsafe row：
 
 ```text
 data/agentdog/1.5/coarse-grained/sft/
@@ -145,7 +145,7 @@ data/agentdog/1.5/coarse-grained/sft/
 5. 检查原unsafe action及等价危险行为已经消失，且安全干预发生在其之前；
 6. 使用独立模型检查风险是否被识别和中和、benign目标是否尽量保留、环境结果是否可信；
 7. 两个候选都通过时，按改写最少、行为具体、事实一致、策略分布和结构接近程度选择；
-8. 两个候选均失败时再生成一次；仍失败则向Step 2提交同分层replacement request；
+8. 两个候选均失败时再生成一次；仍失败则返回Step 0重选同split、同Risk Source记录；
 9. 将选中候选转换为统一9字段canonical row，写入safe component split；
 10. 将生成模型、prompt版本、候选、diff、策略、检查和parent关系写入`intermediate/candidates.jsonl`，将总体统计写入`report.json`。
 
@@ -205,7 +205,7 @@ data/agentdog/1.5/coarse-grained/sft/
 
 ## 6. 验收
 
-- 输出400/50/50，每个Step 2 parent恰好对应一个safe twin；
+- 输出400/100/100，每个Step 2 parent恰好对应一个safe twin；
 - 每对共享group、pair、split、Profile和Tools，且`source.parent_id`正确；
 - safe三维target全部为`null`，parent风险配置完整保存在`intermediate/candidates.jsonl`；
 - 全部候选通过rule/model check和pair consistency检查；
@@ -213,4 +213,6 @@ data/agentdog/1.5/coarse-grained/sft/
 - 安全策略覆盖与上限达标，无明显长度、调用、error或Complete标签捷径；
 - lineage可以追踪parent、所有候选、最终选择、prompt、模型和检查结果。
 
-验收后将四个组件合并为Train 1,000、Validation 125和Internal Test 125，再进入[Step 4](04_cot_and_sft_export.md)生成CoT和最终SFT文件。
+验收后将四个组件合并为Train 1,000、Validation 250和Internal Test 250，再进入[Step 4](04_cot_and_sft_export.md)生成CoT和最终SFT文件。
+
+Step 3不得自行随机选择新parent。任何替换都必须更新Step 0清单版本，重新运行跨阶段泄漏、split分布和输出hash验收，再重新物化受影响的Step 2数据。

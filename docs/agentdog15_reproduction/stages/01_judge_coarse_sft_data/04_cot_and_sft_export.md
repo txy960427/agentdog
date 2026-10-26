@@ -11,6 +11,8 @@
 
 Teacher输入仍是论文CoT生成模板的补全版。Student输入仍是已在benchmark验证的[judge_eval/prompt.txt](../../../../judge_eval/prompt.txt)。两者输入文字不要求相同；Teacher输出和SFT assistant目标必须完全相同。
 
+本Step不抽样、不重新分组、不改变split。全部记录必须能追溯到Step 0选择清单；Step 3 safe twin通过`source.parent_id`继承对应Step 2 parent的group、pair和split。
+
 ## 2. 最终Teacher Prompt
 
 运行时直接读取[coarse_cot_teacher.txt](prompts/coarse_cot_teacher.txt)，全文如下：
@@ -256,8 +258,8 @@ Parquet不写顶层`tools`列，避免`MultiTurnSFTDataset`再次向chat templat
 ## 6. Split、测试读取方式与产物
 
 - Train 1,000条：生成CoT并导出`train.parquet`；
-- Validation 125条：生成CoT并导出`validation.parquet`；
-- Internal Test 125条：同样生成CoT并导出`test.parquet`，保留完整assistant参考答案。
+- Validation 250条：生成CoT并导出`validation.parquet`；
+- Internal Test 250条：同样生成CoT并导出`test.parquet`，保留完整assistant参考答案。
 
 Internal Test不交给SFT trainer。推理评测时明确丢弃参考assistant消息：
 
@@ -281,4 +283,4 @@ data/agentdog/1.5/coarse-grained/sft/
     └── report.json                             # CoT质量、切分数量和输出hash
 ```
 
-最终验收只检查：三个split均有完整两条messages、三个占位符无gold泄漏、四问全部可解析、Judgment与gold一致、Student输入通过冻结renderer生成、全部样本在训练cutoff内；测试器必须有单元测试证明不会把`messages[1]`发送给模型。
+最终验收检查：三个split均有完整两条messages、全部记录与Step 0冻结split一致、三个占位符无gold泄漏、四问全部可解析、Judgment与gold一致、Student输入通过冻结renderer生成、全部样本在训练cutoff内；测试器必须有单元测试证明不会把`messages[1]`发送给模型。
