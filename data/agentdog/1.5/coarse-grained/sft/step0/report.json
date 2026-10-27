@@ -1,0 +1,531 @@
+{
+  "stage": "agentdog-1.5/coarse-grained/sft/step0",
+  "version": "1.0.0",
+  "created_at": "2026-10-26T07:08:57+00:00",
+  "source": {
+    "binary": {
+      "path": "D:\\agentdog\\data\\agentdog\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-BinarySafety\\train.json",
+      "sha256": "9a86a7cfae59c916431ed675225eb34099b8a089b985d6de38aec19a10616c6d",
+      "physical_records": 4000,
+      "unique_records": 2000,
+      "duplicates": 2000,
+      "labels": {
+        "safe": 1000,
+        "unsafe": 1000
+      },
+      "quarantine": 0
+    },
+    "fine": {
+      "path": "D:\\agentdog\\data\\agentdog\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-FineGrainedTaxonomy\\train.json",
+      "sha256": "0ee0356677c3ffe5f5c83db62191efc7c07a6a8ac1d20e88a326c53faeb8ff6c",
+      "physical_records": 4000,
+      "unique_records": 4000,
+      "duplicates": 0,
+      "risk_sources": {
+        "Corrupted Tool Feedback": 511,
+        "Direct Prompt Injection": 603,
+        "Indirect Prompt Injection": 346,
+        "Inherent Agent/LLM Failures": 310,
+        "Malicious Tool Execution": 729,
+        "Malicious User Instruction or Jailbreak": 656,
+        "Tool Description Injection": 353,
+        "Unreliable or Mis-information": 492
+      },
+      "failure_mode_classes": 14,
+      "real_world_harm_classes": 10,
+      "triples": 1044,
+      "quarantine": 0
+    }
+  },
+  "quarantine": {
+    "binary": [],
+    "fine": []
+  },
+  "grouping": {
+    "groups": 4996,
+    "multi_record_groups": 1002,
+    "largest_group": 4,
+    "group_size_histogram": {
+      "1": 3994,
+      "2": 1001,
+      "4": 1
+    },
+    "cross_source_groups": 999
+  },
+  "benchmark_overlap": {
+    "files": [
+      {
+        "source": "atbench",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\atbench\\test.json",
+        "sha256": "80c534b5f3517c872b528a2e6b64e34495206968edd184f4aed563d39f0cca09",
+        "records": 1000
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\chatbot.json",
+        "sha256": "4e2f4a75271eec9bae6515d05b270053d5bca384cf7ea1190f95eda3cea5488b",
+        "records": 6
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\dh_app.json",
+        "sha256": "b3de98b42367332533cf3bf828bb0bc87de7bc8f5fd0fbf629cd2ff48b216e0f",
+        "records": 66
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\ds_app.json",
+        "sha256": "209c80e99e5b1ebb24ff8fedc2aea9872ad5012db96019b1ebf6882157436146",
+        "records": 147
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\mail.json",
+        "sha256": "75cb8bad0c29fc18411cf5e1f6fac425ee42d9c8090d496d62ec4819b8140b51",
+        "records": 4
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\medical.json",
+        "sha256": "e7ed1581d5a815ea7af8de26b6c1732b63c519eda6cae3dcc3cd9a8a581ec262",
+        "records": 4
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\phone.json",
+        "sha256": "a63e413cfad181b17a1ecdc00db7778e14ede7ca924fc164596c09c24b595d02",
+        "records": 11
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\productivity.json",
+        "sha256": "599107f85bd255d355a0d057cd39a9c3cb96c49397ae344754ada1296bea5309",
+        "records": 7
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Application\\socialapp.json",
+        "sha256": "5cd419ea9f7409dd5cbcd117443f99fee7a1e8124955b7ab7d941914f293b892",
+        "records": 7
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Finance\\bitcoin.json",
+        "sha256": "faddca9b2561a05e5e8c58f4500f644d9a2d5e3e44963282093f985274b5941b",
+        "records": 8
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Finance\\dh_finance.json",
+        "sha256": "0f1cb43a2f1f63440834049bbf78c9909b40961735adc69c267033e0ae240b56",
+        "records": 42
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Finance\\ds_finance.json",
+        "sha256": "0f3309c6e9759bf9ae227257ec3923c56c2768ebd2235ec98c8100ffa005519b",
+        "records": 67
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Finance\\moneymanagement.json",
+        "sha256": "d56134e91b11feacbd449af0dd90dfc4306d848636a241ffc53d723766a6eb3c",
+        "records": 4
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Finance\\webshop.json",
+        "sha256": "20463337cfc228ac0cd4a5e9fda8b0989d46c9062a21f136ff78a3169fd612c8",
+        "records": 5
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\IoT\\household.json",
+        "sha256": "1b57f59dde6dc6daec13bbf6191a400e6e53d50f60693672e0d49d4c948fa264",
+        "records": 16
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\IoT\\phone_iot.json",
+        "sha256": "c38321800dc6c73e64121ed07df14da3f321efe300e68a7c006db9b161a4b676",
+        "records": 6
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\IoT\\trafficdispatch.json",
+        "sha256": "1cc43a1efa73f127988e5a8151081a525a1470f2d320efa154544ffeea8d7be4",
+        "records": 8
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\code_agentmonitor.json",
+        "sha256": "f41b81d3f49cb09d8f62205ee4b2dbafb5bec9b44dbd112cde842fd0e2165e94",
+        "records": 18
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\dh_program.json",
+        "sha256": "222b228525ce05a972dfabc7d1548b59bb2e88a615f71d3c37afabd3bc4a1036",
+        "records": 12
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\ds_program.json",
+        "sha256": "5275de6d4f1ff5d01559ff80eb646e30daec80307aa4d1fbdc87f76581fb4f85",
+        "records": 68
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\phone_program.json",
+        "sha256": "da5ba9b0d5d7cd0e2842dec78d2d582574fc7b61469f3486ad7bc45128b519e3",
+        "records": 2
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\security.json",
+        "sha256": "2fb039674fe877e6666cd6f3745b841e84e07fe5f2ea62504d65ef2caa73b516",
+        "records": 7
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\software.json",
+        "sha256": "771ccf2594f6310ef1628c345249ff550b123809016baf1c6eed55b816ccd015",
+        "records": 6
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Program\\terminal.json",
+        "sha256": "9f2175ae64693b7f72e23ccad2736e804dfc6aa36e8c53b99034607590c868ea",
+        "records": 15
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Web\\dh_web.json",
+        "sha256": "6d338be814845e9829370f28a60cad1e4a27f2904183b18e125e49dddace15db",
+        "records": 4
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Web\\ds_web.json",
+        "sha256": "457413fa9612c1a3f6c25f013e70036041480fa6ae551964dd2e2d9da4724a6a",
+        "records": 8
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Web\\webbrowser.json",
+        "sha256": "2d687e63346cf5cfd91e3cfc11d697c6f43895f787072c019b3cf8046ca6bc66",
+        "records": 10
+      },
+      {
+        "source": "rjudge",
+        "path": "D:\\agentdog\\benchmark\\agentdog\\rjudge\\data\\Web\\websearch.json",
+        "sha256": "9f98c31a183e5d61b9eced669f02a0dede461a69b5c52ad8a0e6d9b7a24a499d",
+        "records": 13
+      }
+    ],
+    "trajectories": 1590,
+    "matched_records": 0,
+    "blocked_groups": 0,
+    "matches": []
+  },
+  "selection": {
+    "records": 900,
+    "by_split": {
+      "train": {
+        "records": 600,
+        "step1": 200,
+        "step1_labels": {
+          "safe": 100,
+          "unsafe": 100
+        },
+        "step2": 400,
+        "step2_risk_sources": {
+          "Corrupted Tool Feedback": 50,
+          "Direct Prompt Injection": 50,
+          "Indirect Prompt Injection": 50,
+          "Inherent Agent/LLM Failures": 50,
+          "Malicious Tool Execution": 50,
+          "Malicious User Instruction or Jailbreak": 50,
+          "Tool Description Injection": 50,
+          "Unreliable or Mis-information": 50
+        },
+        "step2_failure_modes": 14,
+        "step2_real_world_harms": 10,
+        "step2_unique_triples": 358,
+        "step2_risk_structures": {
+          "has_environment_error": 19,
+          "has_schema_warning": 36,
+          "has_duplicate_tool_name": 10,
+          "has_risk_structure": 60
+        },
+        "step2_length_quartiles": {
+          "0": 100,
+          "1": 98,
+          "2": 102,
+          "3": 100
+        }
+      },
+      "validation": {
+        "records": 150,
+        "step1": 50,
+        "step1_labels": {
+          "safe": 25,
+          "unsafe": 25
+        },
+        "step2": 100,
+        "step2_risk_sources": {
+          "Corrupted Tool Feedback": 13,
+          "Direct Prompt Injection": 12,
+          "Indirect Prompt Injection": 13,
+          "Inherent Agent/LLM Failures": 12,
+          "Malicious Tool Execution": 13,
+          "Malicious User Instruction or Jailbreak": 12,
+          "Tool Description Injection": 13,
+          "Unreliable or Mis-information": 12
+        },
+        "step2_failure_modes": 14,
+        "step2_real_world_harms": 10,
+        "step2_unique_triples": 100,
+        "step2_risk_structures": {
+          "has_environment_error": 5,
+          "has_schema_warning": 9,
+          "has_duplicate_tool_name": 2,
+          "has_risk_structure": 15
+        },
+        "step2_length_quartiles": {
+          "0": 25,
+          "1": 24,
+          "2": 26,
+          "3": 25
+        }
+      },
+      "test": {
+        "records": 150,
+        "step1": 50,
+        "step1_labels": {
+          "safe": 25,
+          "unsafe": 25
+        },
+        "step2": 100,
+        "step2_risk_sources": {
+          "Corrupted Tool Feedback": 12,
+          "Direct Prompt Injection": 13,
+          "Indirect Prompt Injection": 12,
+          "Inherent Agent/LLM Failures": 13,
+          "Malicious Tool Execution": 12,
+          "Malicious User Instruction or Jailbreak": 13,
+          "Tool Description Injection": 12,
+          "Unreliable or Mis-information": 13
+        },
+        "step2_failure_modes": 14,
+        "step2_real_world_harms": 10,
+        "step2_unique_triples": 99,
+        "step2_risk_structures": {
+          "has_environment_error": 5,
+          "has_schema_warning": 9,
+          "has_duplicate_tool_name": 2,
+          "has_risk_structure": 15
+        },
+        "step2_length_quartiles": {
+          "0": 25,
+          "1": 24,
+          "2": 27,
+          "3": 24
+        }
+      }
+    }
+  },
+  "audit": {
+    "model_training": {
+      "planned_final_train": {
+        "safe": 500,
+        "unsafe": 500
+      },
+      "planned_final_validation": {
+        "safe": 125,
+        "unsafe": 125
+      },
+      "planned_final_test": {
+        "safe": 125,
+        "unsafe": 125
+      },
+      "step2_train_risk_sources": {
+        "Corrupted Tool Feedback": 50,
+        "Direct Prompt Injection": 50,
+        "Indirect Prompt Injection": 50,
+        "Inherent Agent/LLM Failures": 50,
+        "Malicious Tool Execution": 50,
+        "Malicious User Instruction or Jailbreak": 50,
+        "Tool Description Injection": 50,
+        "Unreliable or Mis-information": 50
+      }
+    },
+    "algorithm": {
+      "seed": 42,
+      "group_before_split": true,
+      "split_independent_sampling": true,
+      "selected_unique_groups": 900,
+      "cross_split_groups": 0,
+      "cross_split_reused_user_texts": 1
+    },
+    "data_engineering": {
+      "selected_ids_unique": true,
+      "selected_benchmark_overlap": 0,
+      "binary_quarantine": 0,
+      "fine_quarantine": 0
+    },
+    "data_analysis": {
+      "source_bias_warnings": [
+        "BinarySafety action format perfectly separates safe and unsafe labels",
+        "FineGrainedTaxonomy contains no trajectories with 1-4 events"
+      ],
+      "binary_action_formats": {
+        "safe": {
+          "json": 500,
+          "text": 500
+        },
+        "unsafe": {
+          "mixed": 1000
+        }
+      },
+      "binary_event_count_ranges": {
+        "safe": [
+          2,
+          11
+        ],
+        "unsafe": [
+          10,
+          19
+        ]
+      },
+      "fine_event_bins": {
+        "05-08": 277,
+        "09-16": 3723
+      },
+      "source_step2_risk_structure_rates": {
+        "has_environment_error": 0.04825,
+        "has_schema_warning": 0.0925,
+        "has_duplicate_tool_name": 0.0265,
+        "has_risk_structure": 0.15275
+      },
+      "splits": {
+        "train": {
+          "records": 600,
+          "step1": 200,
+          "step1_labels": {
+            "safe": 100,
+            "unsafe": 100
+          },
+          "step2": 400,
+          "step2_risk_sources": {
+            "Corrupted Tool Feedback": 50,
+            "Direct Prompt Injection": 50,
+            "Indirect Prompt Injection": 50,
+            "Inherent Agent/LLM Failures": 50,
+            "Malicious Tool Execution": 50,
+            "Malicious User Instruction or Jailbreak": 50,
+            "Tool Description Injection": 50,
+            "Unreliable or Mis-information": 50
+          },
+          "step2_failure_modes": 14,
+          "step2_real_world_harms": 10,
+          "step2_unique_triples": 358,
+          "step2_risk_structures": {
+            "has_environment_error": 19,
+            "has_schema_warning": 36,
+            "has_duplicate_tool_name": 10,
+            "has_risk_structure": 60
+          },
+          "step2_length_quartiles": {
+            "0": 100,
+            "1": 98,
+            "2": 102,
+            "3": 100
+          }
+        },
+        "validation": {
+          "records": 150,
+          "step1": 50,
+          "step1_labels": {
+            "safe": 25,
+            "unsafe": 25
+          },
+          "step2": 100,
+          "step2_risk_sources": {
+            "Corrupted Tool Feedback": 13,
+            "Direct Prompt Injection": 12,
+            "Indirect Prompt Injection": 13,
+            "Inherent Agent/LLM Failures": 12,
+            "Malicious Tool Execution": 13,
+            "Malicious User Instruction or Jailbreak": 12,
+            "Tool Description Injection": 13,
+            "Unreliable or Mis-information": 12
+          },
+          "step2_failure_modes": 14,
+          "step2_real_world_harms": 10,
+          "step2_unique_triples": 100,
+          "step2_risk_structures": {
+            "has_environment_error": 5,
+            "has_schema_warning": 9,
+            "has_duplicate_tool_name": 2,
+            "has_risk_structure": 15
+          },
+          "step2_length_quartiles": {
+            "0": 25,
+            "1": 24,
+            "2": 26,
+            "3": 25
+          }
+        },
+        "test": {
+          "records": 150,
+          "step1": 50,
+          "step1_labels": {
+            "safe": 25,
+            "unsafe": 25
+          },
+          "step2": 100,
+          "step2_risk_sources": {
+            "Corrupted Tool Feedback": 12,
+            "Direct Prompt Injection": 13,
+            "Indirect Prompt Injection": 12,
+            "Inherent Agent/LLM Failures": 13,
+            "Malicious Tool Execution": 12,
+            "Malicious User Instruction or Jailbreak": 13,
+            "Tool Description Injection": 12,
+            "Unreliable or Mis-information": 13
+          },
+          "step2_failure_modes": 14,
+          "step2_real_world_harms": 10,
+          "step2_unique_triples": 99,
+          "step2_risk_structures": {
+            "has_environment_error": 5,
+            "has_schema_warning": 9,
+            "has_duplicate_tool_name": 2,
+            "has_risk_structure": 15
+          },
+          "step2_length_quartiles": {
+            "0": 25,
+            "1": 24,
+            "2": 27,
+            "3": 24
+          }
+        }
+      }
+    },
+    "status": "pass",
+    "failures": []
+  },
+  "outputs": {
+    "candidates": {
+      "path": "intermediate/candidates.jsonl",
+      "records": 6000,
+      "sha256": "5ec3fb201781783695b329b3f5a1dbfba941c4699b9a9d8b8a2834155a0e0de5"
+    },
+    "selection": {
+      "path": "final/selection.jsonl",
+      "records": 900,
+      "sha256": "84c7a4ff7d1df3520e18ce79d38eda3ffdad07b40f0af2ed1e001f48e6abfd2b"
+    }
+  }
+}

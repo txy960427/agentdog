@@ -50,6 +50,8 @@ ENV/
 !/data/agentdog/
 /data/agentdog/*
 !/data/agentdog/README.md
+!/data/agentdog/1.5/
+!/data/agentdog/1.5/**
 
 # Training / eval artifacts
 **/outputs/
