@@ -1,5 +1,7 @@
 # Step 0：全局候选池、采样与切分
 
+> 状态：已实现并通过验收；正式输出为900条冻结parent。
+
 ## 1. 当前阶段的目标、来源和目标数据
 
 ### 1.1 当前目标
@@ -12,7 +14,7 @@ Step 0是数据的唯一采样和split分配阶段。它先用统一parser检查
 | FineGrained unsafe | 400 | 100 | 100 | 600 |
 | **全部parent** | **600** | **150** | **150** | **900** |
 
-Step 1和Step 2只能读取本Step的选择清单，不再自行抽样或切分。FineGrained记录同时保留RS、FM、RWH，既可降级成粗粒度`unsafe`，也可供后续细粒度训练使用。Step 3由600条FineGrained parent逐条生成safe twin；Step 4只增加CoT并导出训练格式。
+Step 1和Step 2只能读取本Step的选择清单，不再自行抽样或切分。FineGrained记录同时保留RS、FM、RWH，在本阶段降级成粗粒度`unsafe`并用于分层审计；它们只能作为未来细粒度阶段的候选种子，不能替代尚未设计的完整细粒度数据集。Step 3由600条FineGrained parent逐条生成safe twin；Step 4只增加CoT并导出训练格式。
 
 ### 1.2 原始数据来源
 
@@ -181,20 +183,20 @@ Train中8个Risk Source各50条。Validation和Test各100条，每个RS分别为
 
 - 配额全部满足；每个split使用独立分布目标；
 - 同一seed重跑时`selection.jsonl`内容hash完全一致；
-- 抽样相对同配额随机基线确实降低FM、RWH和结构边际分布误差；
+- 确定性贪心抽样同时约束FM、RWH、长度和风险结构边际分布；当前版本不宣称完成了随机基线对照实验；
 - 任一group、pair或稳定ID跨split时直接失败。
 
 ### 6.3 数据工程视角
 
-- 记录两个输入文件、benchmark文件和parser版本hash；
+- 报告记录两个输入文件、benchmark文件和输出文件hash；parser实现由Git commit冻结，修改parser后必须重跑Step 0；
 - quarantine、精确重复、近重复和benchmark匹配均可追溯；
 - Step 1/2能够由`selection.jsonl`稳定回读同一原始记录；
 - 跨BinarySafety和FineGrained的近重复检查必须进入正式报告。
 
 ### 6.4 数据分析视角
 
-- 按split报告标签、RS、FM、RWH、三维组合、长度、事件数、工具数和风险结构；
-- 同时报告源分布、目标分布、实际分布和绝对偏差；
+- 按split报告标签、RS、FM/RWH类别覆盖、三维组合数、长度四分位和风险结构计数；
+- 报告公开源数据的已知格式偏差和风险结构率；更细的逐字段分布对照属于后续分析增强项；
 - Validation和Test分别验收，不能只检查900条或600条总体；
 - Internal Test只用于同分布管线检查；论文核心指标仍使用ATBench和R-Judge。
 

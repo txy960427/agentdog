@@ -1,5 +1,7 @@
 # Step 4：粗粒度CoT生成与SFT导出
 
+> 状态：数据契约和Teacher Prompt已冻结，代码与实际teacher模型尚未确定。固定输入为Step 1的300条、Step 2的600条和Step 3的600条，共1,500条；本Step不得抽样或补样。
+
 ## 1. 最终决定
 
 论文粗粒度CoT模板保留Task、Q1–Q4和safe note，只做两处补全：
@@ -12,6 +14,15 @@
 Teacher输入仍是论文CoT生成模板的补全版。Student输入仍是已在benchmark验证的[judge_eval/prompt.txt](../../../../judge_eval/prompt.txt)。两者输入文字不要求相同；Teacher输出和SFT assistant目标必须完全相同。
 
 本Step不抽样、不重新分组、不改变split。全部记录必须能追溯到Step 0选择清单；Step 3 safe twin通过`source.parent_id`继承对应Step 2 parent的group、pair和split。
+
+固定输入规模如下：
+
+| 组件 | Train | Validation | Internal Test |
+|---|---:|---:|---:|
+| Step 1 Binary safe/unsafe | 200 | 50 | 50 |
+| Step 2 带工具unsafe | 400 | 100 | 100 |
+| Step 3 带工具safe twin | 400 | 100 | 100 |
+| **合计** | **1,000** | **250** | **250** |
 
 ## 2. 最终Teacher Prompt
 
@@ -205,7 +216,7 @@ cot = "\n\n".join(
 4. unsafe样本必须指出已经执行的危险动作或危险决策模式；
 5. error和Complete不能自动覆盖之前已经发生的危险行为。
 
-格式错误最多重试两次。标签冲突或证据虚构进入人工审核；仍不通过则丢弃并从同分层补样。
+格式错误最多重试两次。标签冲突或证据虚构进入人工审核，可在保留可见证据和gold不变的前提下人工修正CoT并记录diff。Step 4不得丢弃记录或从同分层补样；若人工确认canonical gold本身错误，必须退回对应上游阶段修订并重新执行后续验收。
 
 ## 5. 最终SFT输入和输出
 

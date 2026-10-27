@@ -1,6 +1,6 @@
 # Step 2：按Step 0清单转换带工具unsafe
 
-> 状态：仅保留设计，代码将在Step 0冻结后实现。
+> 状态：已实现并接入统一管线入口。
 
 ## 1. 当前阶段的目标、来源和目标数据
 
@@ -97,7 +97,7 @@ data/
         ├── step0/final/selection.jsonl         # 输入：冻结选择与split
         └── step2/
             ├── intermediate/
-            │   └── materialized.jsonl          # 600条解析结果与工具审计
+            │   └── materialized.jsonl          # 600条canonical parent
             ├── final/
             │   ├── train.jsonl                 # 400条
             │   ├── validation.jsonl            # 100条
@@ -141,7 +141,7 @@ Step 0已经用同一parser排除了无法解析工具、轨迹被截断、标�
 | `target.real_world_harm` | output第3行 | 兼容`Real World Harm`前缀并规范化 |
 | `target.cot` | 不存在 | 固定为`null`，Step 4生成 |
 
-`intermediate/materialized.jsonl`每行包含canonical记录和最小工具审计信息；全局抽样特征、benchmark匹配和分布报告由Step 0保存。Step 3需要的改写位置、保护约束和安全策略在生成safe twin时根据完整parent轨迹确定，不作为Step 2标签。
+`intermediate/materialized.jsonl`保存完整canonical parent；工具审计只在`report.json`中汇总，原始审计字段仍可通过`source.row_id`回查。全局抽样特征、benchmark匹配和分布报告由Step 0保存。Step 3需要的改写位置、保护约束和安全策略在生成safe twin时根据完整parent轨迹确定，不作为Step 2标签。
 
 ## 5. Step 0契约
 

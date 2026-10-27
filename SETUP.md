@@ -40,10 +40,20 @@ Both source files retain their original `instruction/input/output` schema. Check
 Run from the repository root:
 
 ```bash
+python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step0
 python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
 python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step2
 python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py all
 ```
+
+Step 3会调用外部模型生成带工具的safe twin，因此不包含在`all`中。完成Step 0至Step 2后，先运行16条pilot：
+
+```bash
+export DEEPSEEK_API_KEY="替换为新生成的Key"
+MODE=pilot bash data_pipeline/agentdog/1.5/coarse-grained/sft/run_step3.sh
+```
+
+两套Prompt、完整审核流程与后续`full/finalize`命令见[data_pipeline/README.md](data_pipeline/README.md)。
 
 The generated canonical data and audit reports are written to:
 

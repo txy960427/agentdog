@@ -1,6 +1,6 @@
 # Step 1：按Step 0清单转换BinarySafety
 
-> 状态：仅保留设计，代码将在Step 0冻结后实现。
+> 状态：已实现并接入统一管线入口。
 
 ## 1. 当前阶段的目标、来源和目标数据
 
@@ -91,11 +91,11 @@ data/
         ├── step0/final/selection.jsonl         # 输入：冻结选择与split
         └── step1/
             ├── intermediate/
-            │   └── materialized.jsonl          # 300条解析结果与manifest核验状态
+            │   └── materialized.jsonl          # 300条canonical parent
             ├── final/
             │   ├── train.jsonl                 # 200条
-            │   ├── validation.jsonl            # 25条
-            │   └── test.jsonl                  # 25条
+            │   ├── validation.jsonl            # 50条
+            │   └── test.jsonl                  # 50条
             └── report.json                    # 转换、manifest一致性和输出hash
 ```
 
@@ -110,7 +110,7 @@ data/
 7. 从Step 0原样复制`id/group_id/split`，`pair_id`固定为`null`；
 8. 按split输出统一canonical JSONL，并报告manifest一致性与文件hash。
 
-raw instruction始终保留在只读原始文件中；输入文件hash和parser版本写入`report.json`，不复制到训练row。
+raw instruction始终保留在只读原始文件中；输入文件和Step 0选择清单的hash写入`report.json`，parser实现由Git commit冻结，不复制到训练row。
 
 ## 4. 原始字段到统一字段的映射
 

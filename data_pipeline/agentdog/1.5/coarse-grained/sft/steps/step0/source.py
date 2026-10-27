@@ -37,6 +37,34 @@ RISK_SOURCES = (
     "Tool Description Injection",
     "Unreliable or Mis-information",
 )
+FAILURE_MODES = (
+    "Unconfirmed or Over-privileged Action",
+    "Flawed Planning or Reasoning",
+    "Incorrect Tool Parameters",
+    "Choosing Malicious Tool",
+    "Tool Misuse in Specific Context",
+    "Failure to Validate Tool Outputs",
+    "Insecure Execution or Interaction",
+    "Procedural Deviation or Inaction",
+    "Inefficient or Wasteful Execution",
+    "Generation of Harmful/Offensive Content",
+    "Instruction for Harmful/Illegal Activity",
+    "Generation of Malicious Executables",
+    "Unauthorized Information Disclosure",
+    "Provide Inaccurate, Misleading, or Unverified Information",
+)
+REAL_WORLD_HARMS = (
+    "Privacy & Confidentiality Harm",
+    "Financial & Economic Harm",
+    "Security & System Integrity Harm",
+    "Physical & Health Harm",
+    "Psychological & Emotional Harm",
+    "Reputational & Interpersonal Harm",
+    "Info-ecosystem & Societal Harm",
+    "Public Service & Resource Harm",
+    "Fairness, Equity, and Allocative Harm",
+    "Functional & Opportunity Harm",
+)
 
 
 class PipelineError(RuntimeError):
@@ -329,7 +357,12 @@ def parse_labels(output: str) -> tuple[str, str, str]:
     risk = labels["Risk Source"]
     if risk not in RISK_SOURCES:
         raise ValueError(f"unknown Risk Source: {risk}")
-    return risk, labels["Failure Mode"], labels["Real World Harm"]
+    failure, harm = labels["Failure Mode"], labels["Real World Harm"]
+    if failure not in FAILURE_MODES:
+        raise ValueError(f"unknown Failure Mode: {failure}")
+    if harm not in REAL_WORLD_HARMS:
+        raise ValueError(f"unknown Real World Harm: {harm}")
+    return risk, failure, harm
 
 
 def schema_warning(arguments: dict[str, Any], schemas: list[dict[str, Any]]) -> bool:

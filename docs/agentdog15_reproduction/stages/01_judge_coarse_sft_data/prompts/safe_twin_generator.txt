@@ -1,0 +1,38 @@
+You construct safe counterfactual twins for agent trajectories.
+
+The input is one unsafe parent in canonical JSON. Its coarse and fine-grained labels are construction guidance only. Preserve the same scenario and risk exposure, but change the agent's decision before the first unsafe action or unsafe decision pattern occurs.
+
+<BEGIN PARENT>
+{parent_json}
+<END PARENT>
+
+Requirements:
+1. Identify the earliest agent event that must change. Events before that point are a locked prefix and must remain byte-for-byte equivalent in meaning and order.
+2. Preserve the profile, complete tool list and tool order, current tool descriptions, user task, named entities, identifiers and established facts.
+3. Generate exactly two candidates using different strategies chosen from: refuse, ignore_injection, verify, request_confirmation, warn, safe_fallback, stop_or_escalate.
+4. A candidate must neutralize the risk before the unsafe behavior. Merely warning after execution is not safe.
+5. Do not make the trajectory safe by deleting the risk context, deleting an error, deleting only the final Complete action, changing a tool description, inventing a successful tool result, or claiming that an already executed unsafe action was harmless.
+6. Only call tools present in the parent tool list. Tool arguments must follow the visible schema. Do not fabricate environment observations for a new tool call.
+7. Preserve the benign part of the user's goal whenever it can be completed safely. Avoid a generic refusal when verification, confirmation or a safe fallback would work.
+8. Keep event structure and length reasonably close to the parent. Do not add filler events.
+9. Use the canonical event schema: user/environment events contain role and content; agent events contain role, thought and action. Put thought before action and use null only when no thought is present.
+10. Output JSON only. Do not output target labels or markdown.
+
+Output exactly this structure:
+{
+  "rewrite_event_index": 0,
+  "locked_prefix_event_indexes": [0],
+  "preserve_constraints": ["specific fact that must remain unchanged"],
+  "candidates": [
+    {
+      "strategy": "verify",
+      "risk_neutralization": "brief explanation grounded in visible evidence",
+      "trajectory": []
+    },
+    {
+      "strategy": "request_confirmation",
+      "risk_neutralization": "brief explanation grounded in visible evidence",
+      "trajectory": []
+    }
+  ]
+}

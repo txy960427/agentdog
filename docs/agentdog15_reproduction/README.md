@@ -33,7 +33,7 @@ AgentDoG Judge
 
 | 阶段 | 训练输入 | 阶段产物 | 当前规划状态 |
 |---|---|---|---|
-| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | 数据设计已展开，训练方案待补 |
+| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | Step 0至Step 2已产出；Step 3代码待运行；Step 4待实现 |
 | 2. AgentDoG细粒度SFT | 细粒度轨迹、CoT、RS/FM/RWH | 细粒度SFT初始化模型 | 待规划 |
 | 3. AgentDoG细粒度GDPO | 细粒度query与可验证三维奖励 | AgentDoG细粒度模型 | 待规划 |
 | 4. 主执行Agent SFT | AgentDoG筛选后的安全轨迹与良性工具轨迹 | 主执行Agent SFT模型 | 待规划 |
@@ -89,7 +89,7 @@ data/agentdog/
 | 带工具safe | 400 | 100 | 100 | 对带工具unsafe逐条生成一一对应safe twin |
 | **合计** | **1,000** | **250** | **250** |  |
 
-三个split内部都保持safe/unsafe严格平衡。FineGrained的RS、FM、RWH三个标签同时保留，供后续细粒度SFT和GDPO复用。
+三个split内部都保持safe/unsafe严格平衡。FineGrained的RS、FM、RWH三个标签同时保留，用于本阶段分层、审计和后续阶段的候选种子；这600条不能直接视为尚未规划的细粒度SFT/GDPO完整训练集。
 
 #### 4.1.3 数据构建步骤
 
@@ -137,8 +137,8 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 | 测试类型 | 数据 | 作用 |
 |---|---|---|
-| Validation | 内部125条Validation | 训练中选择checkpoint |
-| Internal Test | 内部125条Test | 冻结后检查同分布泛化 |
+| Validation | 内部250条Validation | 训练中选择checkpoint |
+| Internal Test | 内部250条Test | 冻结后检查同分布泛化 |
 | External Test | R-Judge、ATBench | 对齐论文粗粒度核心指标 |
 | Adaptation Test | ATBench-Codex、ATBench-Claw | 单独进行格式适配后报告，不与主粗粒度测试混合 |
 

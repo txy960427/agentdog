@@ -1,5 +1,7 @@
 # 阶段1：AgentDoG粗粒度SFT数据总设计
 
+> 当前状态：Step 0至Step 2已经实现并通过验收；Step 3代码与两套DeepSeek Prompt已经完成但尚未调用API；Step 4的数据契约与Teacher Prompt已确定、代码尚未实现。唯一正式规模是Train 1,000、Validation 250、Internal Test 250。
+
 ## 1. 最终要交给SFT训练器的数据
 
 Train、Validation和Internal Test最终都导出为Parquet，每行采用相同的`messages`格式并保留assistant参考答案。下面是完整字段结构示例；为便于阅读缩短了trajectory，实际user内容由冻结的[judge_eval/prompt.txt](../../../../judge_eval/prompt.txt)和统一renderer完整生成。
@@ -37,7 +39,7 @@ Train、Validation和Internal Test最终都导出为Parquet，每行采用相同
 | 生成的带工具safe twin | 400 | 100 | 100 |
 | **合计** | **1,000** | **250** | **250** |
 
-三个split内部都保持safe/unsafe严格平衡。FineGrained记录保留RS、FM、RWH三个标签，粗粒度训练读取`coarse`，后续细粒度训练读取三维标签。
+三个split内部都保持safe/unsafe严格平衡。FineGrained记录保留RS、FM、RWH三个标签用于抽样、审计和未来候选复用；粗粒度训练只读取`coarse`，本设计不把这600条定义为细粒度阶段的完整训练集。
 
 ## 3. 五步数据流水线
 
@@ -181,5 +183,7 @@ data_pipeline/agentdog/1.5/coarse-grained/sft/
 3. [Step 2：按清单转换带工具unsafe](02_tool_unsafe.md)
 4. [Step 3：带工具safe twin生成](03_tool_safe.md)
 5. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
+6. [Step 3 Safe Twin生成Prompt](prompts/safe_twin_generator.txt)
+7. [Step 3 Safe Twin检查Prompt](prompts/safe_twin_checker.txt)
 
 论文依据统一见[证据索引](../../evidence.md)。

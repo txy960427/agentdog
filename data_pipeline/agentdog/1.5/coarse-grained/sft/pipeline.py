@@ -8,10 +8,17 @@ import sys
 
 from steps.step0.pipeline import run as run_step0
 from steps.step0.source import PipelineError
+from steps.step1.pipeline import run as run_step1
+from steps.step2.pipeline import run as run_step2
+from steps.step3.pipeline import run as run_step3
 
 STAGES = {
     "step0": ("Step 0 - Global selection", run_step0),
+    "step1": ("Step 1 - BinarySafety conversion", run_step1),
+    "step2": ("Step 2 - FineGrained unsafe conversion", run_step2),
+    "step3": ("Step 3 - Safe twin generation", run_step3),
 }
+ALL_STAGES = ("step0", "step1", "step2")
 
 
 def main() -> int:
@@ -22,7 +29,12 @@ def main() -> int:
         help="运行指定阶段，或使用all按顺序运行全部阶段",
     )
     args = parser.parse_args()
-    selected = STAGES.items() if args.stage == "all" else ((args.stage, STAGES[args.stage]),)
+    # all只运行不产生API费用的确定性阶段；Step 3必须显式执行。
+    selected = (
+        ((stage, STAGES[stage]) for stage in ALL_STAGES)
+        if args.stage == "all"
+        else ((args.stage, STAGES[args.stage]),)
+    )
 
     try:
         for _, (name, stage) in selected:
