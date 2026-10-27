@@ -7,7 +7,7 @@ import json
 import os
 import shutil
 from collections import Counter, defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -20,7 +20,7 @@ from steps.step0.source import (
     stable_json,
     validate_tool_calls,
 )
-from steps.step3.client import DeepSeekClient
+from steps.step3.client import OpenAICompatibleClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[7]
 STEP2_ROOT = PROJECT_ROOT / "data/agentdog/1.5/coarse-grained/sft/step2"
@@ -47,6 +47,7 @@ CHECK_FIELDS = (
     "no_fabricated_results",
     "same_scenario",
 )
+PROMPT_CONFIG_KEYS = ("generator_prompt_sha256", "checker_prompt_sha256")
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -332,8 +333,8 @@ def visible(row: dict[str, Any], trajectory: list[dict[str, Any]] | None = None)
 
 def process_parent(
     parent: dict[str, Any],
-    generator: DeepSeekClient,
-    checker: DeepSeekClient,
+    generator: OpenAICompatibleClient,
+    checker: OpenAICompatibleClient,
     generator_template: str,
     checker_template: str,
     config: dict[str, str],
@@ -579,8 +580,10 @@ def ensure_pilot_approved(config: dict[str, str]) -> list[dict[str, Any]]:
     if not candidates_path.is_file() or not reviews_path.is_file():
         raise PipelineError("run and review STEP3_MODE=pilot before full generation")
     records = read_jsonl(candidates_path)
-    if len(records) != 16 or any(record.get(key) != value for record in records for key, value in config.items()):
-        raise PipelineError("pilot does not match the current prompt/model configuration")
+    if len(records) != 16 or any(
+        record.get(key) != config[key] for record in records for key in PROMPT_CONFIG_KEYS
+    ):
+        raise PipelineError("pilot does not match the current prompt configuration")
     reviews = {row["parent_id"]: row for row in read_jsonl(reviews_path)}
     if any(
         reviews.get(record["parent_id"], {}).get("status") != "approved"
@@ -606,6 +609,40 @@ def usage_summary(records: list[dict[str, Any]]) -> dict[str, int]:
     return dict(totals)
 
 
+def model_provenance(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """汇总每批数据的生成/校验模型；旧记录缺少接口字段时按当时的DeepSeek官方接口记录。"""
+    counts: Counter[tuple[str, str, str, str, str, str]] = Counter(
+        (
+            str(record.get("generator_model", "unknown")),
+            str(record.get("checker_model", "unknown")),
+            str(record.get("api_base_url", "https://api.deepseek.com")),
+            str(record.get("thinking", "enabled")),
+            str(record.get("reasoning_effort", "high")),
+            str(record.get("stream", False)),
+        )
+        for record in records
+    )
+    return [
+        {
+            "generator_model": generator_model,
+            "checker_model": checker_model,
+            "api_base_url": api_base_url,
+            "thinking": thinking,
+            "reasoning_effort": reasoning_effort,
+            "stream": stream,
+            "records": count,
+        }
+        for (
+            generator_model,
+            checker_model,
+            api_base_url,
+            thinking,
+            reasoning_effort,
+            stream,
+        ), count in sorted(counts.items())
+    ]
+
+
 def generate(mode: str) -> None:
     parents = load_parents()
     selected_parents = pilot_parents(parents) if mode == "pilot" else full_parents(parents)
@@ -617,11 +654,28 @@ def generate(mode: str) -> None:
     checker_template = CHECKER_PROMPT_PATH.read_text(encoding="utf-8")
     generator_model = os.environ.get("STEP3_GENERATOR_MODEL", "deepseek-v4-pro")
     checker_model = os.environ.get("STEP3_CHECKER_MODEL", "deepseek-v4-pro")
+    api_base_url = os.environ.get(
+        "STEP3_BASE_URL",
+        os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+    ).rstrip("/")
+    thinking = os.environ.get("STEP3_THINKING", "enabled")
+    reasoning_effort = os.environ.get("STEP3_REASONING_EFFORT", "high")
+    stream = os.environ.get("STEP3_STREAM", "false").strip().lower() == "true"
+    max_tokens_field = os.environ.get("STEP3_MAX_TOKENS_FIELD", "max_tokens")
+    generator_max_tokens = int(os.environ.get("STEP3_GENERATOR_MAX_TOKENS", "65536"))
+    checker_max_tokens = int(os.environ.get("STEP3_CHECKER_MAX_TOKENS", "16384"))
     config = {
         "generator_prompt_sha256": sha256_file(GENERATOR_PROMPT_PATH),
         "checker_prompt_sha256": sha256_file(CHECKER_PROMPT_PATH),
         "generator_model": generator_model,
         "checker_model": checker_model,
+        "api_base_url": api_base_url,
+        "thinking": thinking,
+        "reasoning_effort": reasoning_effort,
+        "stream": stream,
+        "max_tokens_field": max_tokens_field,
+        "generator_max_tokens": generator_max_tokens,
+        "checker_max_tokens": checker_max_tokens,
     }
     approved_pilot = ensure_pilot_approved(config) if mode == "full" else []
 
@@ -632,12 +686,12 @@ def generate(mode: str) -> None:
     )
     existing_rows = read_jsonl(candidates_path) if candidates_path.exists() else []
     existing = {row["parent_id"]: row for row in existing_rows}
-    # full沿用同一Prompt/模型下已审核通过的pilot，避免重复付费。
+    # full沿用同一Prompt下已审核通过的pilot；允许后续批次更换生成模型。
     for row in approved_pilot:
         existing.setdefault(row["parent_id"], row)
     for row in existing.values():
-        if any(row.get(key) != value for key, value in config.items()):
-            raise PipelineError(f"existing Step 3 output uses another prompt/model: {row['parent_id']}")
+        if any(row.get(key) != config[key] for key in PROMPT_CONFIG_KEYS):
+            raise PipelineError(f"existing Step 3 output uses another prompt: {row['parent_id']}")
 
     pending_all = [
         row for row in selected_parents if existing.get(row["id"], {}).get("status") != "generated"
@@ -645,12 +699,10 @@ def generate(mode: str) -> None:
     default_batch = 8 if mode == "pilot" else 50
     batch_size = int(os.environ.get("STEP3_BATCH_SIZE", str(default_batch)))
     pending = pending_all[:batch_size] if batch_size > 0 else ([] if batch_size == 0 else pending_all)
-    generator_max_tokens = int(os.environ.get("STEP3_GENERATOR_MAX_TOKENS", "65536"))
-    checker_max_tokens = int(os.environ.get("STEP3_CHECKER_MAX_TOKENS", "16384"))
     workers = int(os.environ.get("STEP3_WORKERS", "2"))
     if pending:
-        generator_client = DeepSeekClient(generator_model, generator_max_tokens)
-        checker_client = DeepSeekClient(checker_model, checker_max_tokens)
+        generator_client = OpenAICompatibleClient(generator_model, generator_max_tokens)
+        checker_client = OpenAICompatibleClient(checker_model, checker_max_tokens)
 
         def work(parent: dict[str, Any]) -> dict[str, Any]:
             return process_parent(
@@ -664,10 +716,16 @@ def generate(mode: str) -> None:
             )
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            for index, record in enumerate(pool.map(work, pending), 1):
+            futures = [pool.submit(work, parent) for parent in pending]
+            for index, future in enumerate(as_completed(futures), 1):
+                record = future.result()
                 existing[record["parent_id"]] = record
                 write_jsonl(candidates_path, [record], mode="a")
-                print(f"Step 3 {mode}: {index}/{len(pending)} {record['parent_id']} {record['status']}")
+                print(
+                    f"Step 3 {mode}: {index}/{len(pending)} "
+                    f"{record['parent_id']} {record['status']}",
+                    flush=True,
+                )
 
     parent_order = {row["id"]: index for index, row in enumerate(selected_parents)}
     records = sorted(
@@ -713,15 +771,16 @@ def generate(mode: str) -> None:
     )
     report = {
         "stage": f"agentdog-1.5/coarse-grained/sft/step3/{mode}",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "status": status,
         "mode": mode,
         "configuration": {
             **config,
-            "base_url": os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-            "thinking": "enabled",
-            "reasoning_effort": "high",
+            "base_url": api_base_url,
+            "thinking": thinking,
+            "reasoning_effort": reasoning_effort,
+            "stream": stream,
             "json_output": True,
             "generator_max_tokens": generator_max_tokens,
             "checker_max_tokens": checker_max_tokens,
@@ -735,6 +794,7 @@ def generate(mode: str) -> None:
         "remaining": expected - len(safe_rows),
         "review_required": sum(bool(row.get("review_required")) for row in records),
         "strategy_counts": strategies,
+        "model_provenance": model_provenance(records),
         "usage": usage_summary(records),
         "outputs": {
             "candidates": {

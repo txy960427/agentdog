@@ -1,64 +1,105 @@
 {
   "stage": "agentdog-1.5/coarse-grained/sft/step3/full",
-  "version": "1.0.0",
-  "created_at": "2026-10-26T14:03:12+00:00",
+  "version": "1.1.0",
+  "created_at": "2026-10-27T03:05:49+00:00",
   "status": "generation_incomplete",
   "mode": "full",
   "configuration": {
     "generator_prompt_sha256": "902306b7c5fd3f3947cc25e5f9c639539b6004ec746b34bdd4c00c57cfee7497",
     "checker_prompt_sha256": "84ba78c64252223edb87162190d0df2322f761b8ab16676a9eaaea5838bd0da6",
-    "generator_model": "deepseek-v4-pro",
-    "checker_model": "deepseek-v4-pro",
-    "base_url": "https://api.deepseek.com",
+    "generator_model": "gpt-5.6-sol",
+    "checker_model": "gpt-5.6-sol",
+    "api_base_url": "https://new.mrxiwang.eu.cc/v1",
     "thinking": "enabled",
-    "reasoning_effort": "high",
+    "reasoning_effort": "medium",
+    "stream": true,
+    "max_tokens_field": "max_completion_tokens",
+    "generator_max_tokens": 12288,
+    "checker_max_tokens": 2048,
+    "base_url": "https://new.mrxiwang.eu.cc/v1",
     "json_output": true,
-    "generator_max_tokens": 65536,
-    "checker_max_tokens": 16384,
-    "workers": 1,
-    "batch_size": 8,
+    "workers": 4,
+    "batch_size": 0,
     "same_model_check": true
   },
   "parents": 600,
-  "generated": 20,
-  "failed": 580,
-  "remaining": 580,
-  "review_required": 20,
+  "generated": 32,
+  "failed": 568,
+  "remaining": 568,
+  "review_required": 32,
   "strategy_counts": {
-    "verify": 7,
-    "request_confirmation": 8,
-    "safe_fallback": 3,
+    "verify": 10,
+    "request_confirmation": 12,
+    "safe_fallback": 6,
     "stop_or_escalate": 1,
-    "ignore_injection": 1
+    "ignore_injection": 3
   },
+  "model_provenance": [
+    {
+      "generator_model": "deepseek-v4-pro",
+      "checker_model": "deepseek-v4-pro",
+      "api_base_url": "https://api.deepseek.com",
+      "thinking": "enabled",
+      "reasoning_effort": "high",
+      "stream": "False",
+      "records": 22
+    },
+    {
+      "generator_model": "gpt-5.6-sol",
+      "checker_model": "gpt-5.6-sol",
+      "api_base_url": "https://new.mrxiwang.eu.cc/v1",
+      "thinking": "enabled",
+      "reasoning_effort": "high",
+      "stream": "False",
+      "records": 1
+    },
+    {
+      "generator_model": "gpt-5.6-sol",
+      "checker_model": "gpt-5.6-sol",
+      "api_base_url": "https://new.mrxiwang.eu.cc/v1",
+      "thinking": "enabled",
+      "reasoning_effort": "high",
+      "stream": "True",
+      "records": 3
+    },
+    {
+      "generator_model": "gpt-5.6-sol",
+      "checker_model": "gpt-5.6-sol",
+      "api_base_url": "https://new.mrxiwang.eu.cc/v1",
+      "thinking": "enabled",
+      "reasoning_effort": "medium",
+      "stream": "True",
+      "records": 6
+    }
+  ],
   "usage": {
-    "generator_prompt_tokens": 107613,
-    "generator_completion_tokens": 311829,
-    "generator_total_tokens": 419442,
+    "generator_prompt_tokens": 147851,
+    "generator_completion_tokens": 330387,
+    "generator_total_tokens": 478238,
     "generator_prompt_cache_hit_tokens": 17536,
-    "generator_prompt_cache_miss_tokens": 90077,
-    "checker_prompt_tokens": 180769,
-    "checker_completion_tokens": 114763,
-    "checker_total_tokens": 295532,
+    "generator_prompt_cache_miss_tokens": 80894,
+    "checker_prompt_tokens": 256112,
+    "checker_completion_tokens": 109278,
+    "checker_total_tokens": 365390,
     "checker_prompt_cache_hit_tokens": 9600,
-    "checker_prompt_cache_miss_tokens": 171169
+    "checker_prompt_cache_miss_tokens": 171586
   },
   "outputs": {
     "candidates": {
       "path": "intermediate/candidates.jsonl",
-      "records": 24,
-      "sha256": "6a219145b76d67b13186dfee44112920937831bee8ba1e8c57cd8ab53ed4661f"
+      "records": 32,
+      "sha256": "0cbb8f68f2884aea0660445e9dd0d6902ea79dc114bec26b3ddc02bd075fc342"
     },
     "reviews": {
       "path": "intermediate/reviews.jsonl",
-      "records": 24,
-      "sha256": "26191d2c69b472835bc51f1841f12ad917147044302bc8ccd57df5bc95e49274"
+      "records": 32,
+      "sha256": "312479c7b25dcbc5bbab7d5e9945b9a66722fc55016cec3cb47526b9c991a69c"
     },
     "draft": {
       "train": {
         "path": "draft/train.jsonl",
-        "records": 20,
-        "sha256": "ed60905722a58a8a796cb557cd9f7de2ebdc7e5f6f8d03624b36634e16e71275"
+        "records": 32,
+        "sha256": "098080757cbf2d1a6c7d64782f36abcb4c7965f5b0e5769641ab3597d1e5b9d6"
       },
       "validation": {
         "path": "draft/validation.jsonl",
