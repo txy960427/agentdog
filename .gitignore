@@ -62,7 +62,9 @@ wandb/
 
 # Local eval dumps only — never write these into baseline_run/
 /judge_eval/runs/
+/train/**/runs/
 /_setup_downloads/
 /tmp/
 AGENTS.md
 specs/*
+jev/*
