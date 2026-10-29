@@ -22,7 +22,7 @@
 ### 1.2 原始数据来源
 
 ```text
-data/agentdog/1.0/source/
+data/1.0/source/
 └── AgentDoG1.0-Training-Data/
     └── AgentDoG-BinarySafety/
         └── train.json
@@ -84,17 +84,16 @@ data/agentdog/1.0/source/
 
 ```text
 data/
-└── agentdog/
-    ├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
-    │   └── AgentDoG-BinarySafety/train.json
-    └── 1.5/coarse-grained/sft/
-        ├── step0/final/selection.jsonl         # 输入：冻结选择与split
-        └── step1/
-            ├── final/
-            │   ├── train.jsonl                 # 200条
-            │   ├── validation.jsonl            # 50条
-            │   └── test.jsonl                  # 50条
-            └── report.json                    # 转换、manifest一致性和输出hash
+├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
+│   └── AgentDoG-BinarySafety/train.json
+└── 1.5/coarse_sft/
+    ├── step0/final/selection.jsonl         # 输入：冻结选择与split
+    └── step1/
+        ├── final/
+        │   ├── train.jsonl                 # 200条
+        │   ├── validation.jsonl            # 50条
+        │   └── test.jsonl                  # 50条
+        └── report.json                    # 转换、manifest一致性和输出hash
 ```
 
 ## 3. 清洗和转换流程
@@ -159,7 +158,7 @@ Step 1不实现分层抽样。以下条件由Step 0在写出清单前保证：
 一个入口脚本完成清单回读、hash核验、轨迹解析、canonical转换和报告生成。全局去重、grouping、benchmark排重、抽样和split分配属于Step 0。
 
 ```text
-data_pipeline/agentdog/1.5/coarse-grained/sft/
+data_pipeline/coarse_sft/
 ├── pipeline.py                     # 多阶段唯一入口
 ├── run_pipeline.sh
 └── steps/
@@ -171,7 +170,7 @@ data_pipeline/agentdog/1.5/coarse-grained/sft/
 推荐运行方式：
 
 ```bash
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
+python3 data_pipeline/coarse_sft/pipeline.py step1
 ```
 
 完整执行说明见[`data_pipeline/README.md`](../../../../data_pipeline/README.md)。

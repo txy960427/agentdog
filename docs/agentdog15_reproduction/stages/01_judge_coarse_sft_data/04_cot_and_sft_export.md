@@ -291,7 +291,7 @@ reference_answer = row["messages"][1]["content"]  # 保留但不发送给模型
 这样三个split的文件结构完全相同；测试既能进行真实生成评测，也能在单独实验中计算held-out loss。默认论文指标只使用真实生成结果和`gold`。
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/
+data/1.5/coarse_sft/
 └── step4/
     ├── intermediate/
     │   └── teacher_outputs.jsonl               # 原始输出、解析结果和拒绝原因

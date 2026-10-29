@@ -28,7 +28,7 @@ safe twin必须保留同一场景、Profile和工具列表，只在原unsafe动�
 本Step没有新的外部原始数据。输入是Step 0已冻结选择、并由Step 2完成物化的600条完整unsafe row：
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/
+data/1.5/coarse_sft/
 └── step2/
     └── final/
         ├── train.jsonl
@@ -152,7 +152,7 @@ pilot用于冻结规则，不自动计入正式80条Train审核量；只有使�
 ## 2. 预计文件结构
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/
+data/1.5/coarse_sft/
 ├── step2/final/                               # 输入：unsafe三份切分
 │   ├── train.jsonl
 │   ├── validation.jsonl

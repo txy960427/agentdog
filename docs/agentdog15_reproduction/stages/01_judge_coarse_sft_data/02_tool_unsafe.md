@@ -20,7 +20,7 @@
 ### 1.2 原始数据来源
 
 ```text
-data/agentdog/1.0/source/
+data/1.0/source/
 └── AgentDoG1.0-Training-Data/
     └── AgentDoG-FineGrainedTaxonomy/
         └── train.json
@@ -90,17 +90,16 @@ data/agentdog/1.0/source/
 
 ```text
 data/
-└── agentdog/
-    ├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
-    │   └── AgentDoG-FineGrainedTaxonomy/train.json
-    └── 1.5/coarse-grained/sft/
-        ├── step0/final/selection.jsonl         # 输入：冻结选择与split
-        └── step2/
-            ├── final/
-            │   ├── train.jsonl                 # 400条
-            │   ├── validation.jsonl            # 100条
-            │   └── test.jsonl                  # 100条
-            └── report.json                    # 转换、manifest一致性和输出hash
+├── 1.0/source/AgentDoG1.0-Training-Data/  # 原始，只读
+│   └── AgentDoG-FineGrainedTaxonomy/train.json
+└── 1.5/coarse_sft/
+    ├── step0/final/selection.jsonl         # 输入：冻结选择与split
+    └── step2/
+        ├── final/
+        │   ├── train.jsonl                 # 400条
+        │   ├── validation.jsonl            # 100条
+        │   └── test.jsonl                  # 100条
+        └── report.json                    # 转换、manifest一致性和输出hash
 ```
 
 ## 3. 清洗和转换流程
@@ -169,5 +168,5 @@ Step 2不实现分层抽样。以下条件由Step 0在写出清单前保证：
 运行命令：
 
 ```bash
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step2
+python3 data_pipeline/coarse_sft/pipeline.py step2
 ```

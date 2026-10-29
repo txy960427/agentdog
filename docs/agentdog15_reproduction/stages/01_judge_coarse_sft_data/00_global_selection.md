@@ -19,7 +19,7 @@ Step 1和Step 2只能读取本Step的选择清单，不再自行抽样或切分�
 ### 1.2 原始数据来源
 
 ```text
-data/agentdog/1.0/source/AgentDoG1.0-Training-Data/
+data/1.0/source/AgentDoG1.0-Training-Data/
 ├── AgentDoG-BinarySafety/train.json
 └── AgentDoG-FineGrainedTaxonomy/train.json
 
@@ -85,7 +85,7 @@ BinarySafety有4,000条物理记录，精确去重后为2,000条唯一记录，s
 ## 2. 文件结构
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/
+data/1.5/coarse_sft/
 └── step0/
     ├── intermediate/
     │   └── candidates.jsonl       # 两个来源的最小候选索引、特征和全局group

@@ -2,24 +2,26 @@
 
 当前实现Step 0至Step 4：统一抽样和冻结split → 转换BinarySafety → 转换带工具unsafe → 生成并审核safe twin → 补充四问CoT并导出SFT数据。
 
+代码按任务放在`data_pipeline/coarse_sft/`，不再嵌套`agentdog/1.5`；输入输出的数据版本在脚本中明确指定，当前分别为`data/1.0/`和`data/1.5/coarse_sft/`。配套训练入口为`train/coarse_sft/`。
+
 ## 运行
 
 在仓库根目录执行：
 
 ```bash
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step0
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step1
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step2
-python3 data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py all
+python3 data_pipeline/coarse_sft/pipeline.py step0
+python3 data_pipeline/coarse_sft/pipeline.py step1
+python3 data_pipeline/coarse_sft/pipeline.py step2
+python3 data_pipeline/coarse_sft/pipeline.py all
 ```
 
 也可以使用Bash包装：
 
 ```bash
-bash data_pipeline/agentdog/1.5/coarse-grained/sft/run_pipeline.sh
-bash data_pipeline/agentdog/1.5/coarse-grained/sft/run_pipeline.sh step1
-bash data_pipeline/agentdog/1.5/coarse-grained/sft/run_pipeline.sh step2
-bash data_pipeline/agentdog/1.5/coarse-grained/sft/run_pipeline.sh all
+bash data_pipeline/coarse_sft/run_pipeline.sh
+bash data_pipeline/coarse_sft/run_pipeline.sh step1
+bash data_pipeline/coarse_sft/run_pipeline.sh step2
+bash data_pipeline/coarse_sft/run_pipeline.sh all
 ```
 
 `all`只运行不产生API费用的Step 0、Step 1和Step 2；Step 3和Step 4需要显式运行。
@@ -55,11 +57,11 @@ python -m pip install pyarrow
 
 ```powershell
 # 只预览输入和检查格式，不调用API
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\agentdog\1.5\coarse-grained\sft\run_step4_company.local.ps1 -DryRun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\coarse_sft\run_step4_company.local.ps1 -DryRun
 # 先生成6条，交错覆盖三种数据来源
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\agentdog\1.5\coarse-grained\sft\run_step4_company.local.ps1 -Limit 6
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\coarse_sft\run_step4_company.local.ps1 -Limit 6
 # 全量生成；再次执行同一命令会断点续跑
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\agentdog\1.5\coarse-grained\sft\run_step4_company.local.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\coarse_sft\run_step4_company.local.ps1
 ```
 
 脚本顶部直接修改`Model`、`BaseUrl`、`MaxTokens`、`Workers`和`RequestInterval`。默认模型仍为`gpt-6.1-sol`、high推理强度、最大生成8,192 token；现改为4并发、全局请求启动间隔8秒。2026-10-29实测接口能接受8个同时在途的短请求，但返回每分钟最多10次请求的限额；6.5秒间隔的连续调用仍在第11次触发429，因此默认保留8秒并加入统一退避。所有worker及重试共用同一个间隔，不是每个worker分别每8秒发一次请求；正常启动速度上限约7.5次/分钟，遇限流等待会更低。实测结论保留在`step4/api_concurrency_summary.json`，原始短请求流水和一次性探测脚本已清理，不能把测试解释为硬并发上限。本地脚本自动读取已有company脚本中的Key；脚本本身不进Git。
@@ -69,9 +71,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\agentdog
 ```powershell
 $env:STEP4_API_KEY = "你的Key"
 $env:STEP4_MODEL = "gpt-6.1-sol"
-python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4 --dry-run
-python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4 --limit 6
-python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4
+python data_pipeline/coarse_sft/pipeline.py step4 --dry-run
+python data_pipeline/coarse_sft/pipeline.py step4 --limit 6
+python data_pipeline/coarse_sft/pipeline.py step4
 ```
 
 正式生成要求Step 1/2/3均已验收且存在final；Step 3仍有failed/pending时会在API调用之前停止。dry-run可读取Step 3 draft作预览，且不写生成文件。
@@ -79,7 +81,7 @@ python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4
 运行后仅保留这些核心输出：
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/step4/
+data/1.5/coarse_sft/step4/
 ├── intermediate/
 │   ├── teacher_outputs.jsonl           # 原始响应、修订历史和断点
 │   ├── independent_reviews.jsonl       # 双模型复核原文
@@ -109,8 +111,8 @@ data/agentdog/1.5/coarse-grained/sft/step4/
 当前无须再次生成或复核。需要重导出时运行原Step 4命令，检查点一致则不调用API。争议复核入口仍保留：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\agentdog\1.5\coarse-grained\sft\run_step4_company.local.ps1 -Review
-Get-Content .\data\agentdog\1.5\coarse-grained\sft\step4\review_report.json
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\data_pipeline\coarse_sft\run_step4_company.local.ps1 -Review
+Get-Content .\data\1.5\coarse_sft\step4\review_report.json
 ```
 
 `ReviewModels`默认是`gpt-6-sol,gpt-6-astra`，可直接修改脚本顶部变量。每条由两种模型分别读取同一Teacher输入，不发送gold、旧CoT或争议原因，每条正常2次请求；本次累计28次（原8条16次，修正后6条12次）。结果逐次保存到`step4/intermediate/independent_reviews.jsonl`；重跑只续未完成的调用，标签分歧不会自动重复，其他已完成数据不重跑。
@@ -122,8 +124,8 @@ Get-Content .\data\agentdog\1.5\coarse-grained\sft\step4\review_report.json
 查看进度：
 
 ```powershell
-Get-Content .\data\agentdog\1.5\coarse-grained\sft\step4\report.json
-Get-Content .\data\agentdog\1.5\coarse-grained\sft\step4\intermediate\teacher_outputs.jsonl -Tail 1 -Wait
+Get-Content .\data\1.5\coarse_sft\step4\report.json
+Get-Content .\data\1.5\coarse_sft\step4\intermediate\teacher_outputs.jsonl -Tail 1 -Wait
 ```
 
 仅当当前`report.json`为`pass`且final文件hash匹配时，才是本轮完整导出；旧final文件即使仍存在，也不能代替当前报告。实现见`steps/step4/pipeline.py`，详细Prompt和数据契约见[Step 4设计](../docs/agentdog15_reproduction/stages/01_judge_coarse_sft_data/04_cot_and_sft_export.md)。
@@ -131,7 +133,7 @@ Get-Content .\data\agentdog\1.5\coarse-grained\sft\step4\intermediate\teacher_ou
 全量离线复验（不调用API）：
 
 ```powershell
-python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4 --verify
+python data_pipeline/coarse_sft/pipeline.py step4 --verify
 ```
 
 会从本地v1.0逐条重做900条parent的转换，复验600条safe twin血缘、全部1500条CoT与导出内容、文件hash、比例、重复输入及group/pair隔离，结果写入`step4/final_audit.json`。通用拒绝句在不同工具和完整轨迹中复用属于已记录的源数据特征，不作为整条轨迹重复。当前检查不是对1500条重新独立语义标注。`.gitattributes`和写文件代码统一LF，保证Windows/Linux检出后的hash一致。
@@ -139,7 +141,7 @@ python data_pipeline/agentdog/1.5/coarse-grained/sft/pipeline.py step4 --verify
 ## 输入
 
 ```text
-data/agentdog/1.0/source/AgentDoG1.0-Training-Data/
+data/1.0/source/AgentDoG1.0-Training-Data/
 ├── AgentDoG-BinarySafety/train.json
 └── AgentDoG-FineGrainedTaxonomy/train.json
 
@@ -153,26 +155,26 @@ ATBench和R-Judge只用于排除近重复。它们不参与抽样目标或模型
 ## 输出
 
 ```text
-data/agentdog/1.5/coarse-grained/sft/step0/
+data/1.5/coarse_sft/step0/
 ├── intermediate/candidates.jsonl  # 6,000条最小候选索引
 ├── final/selection.jsonl          # 900条冻结parent
 └── report.json                    # 四视角审查和输出hash
 
-data/agentdog/1.5/coarse-grained/sft/step1/
+data/1.5/coarse_sft/step1/
 ├── final/
 │   ├── train.jsonl                 # 200条
 │   ├── validation.jsonl            # 50条
 │   └── test.jsonl                  # 50条
 └── report.json                     # 清单核验和输出hash
 
-data/agentdog/1.5/coarse-grained/sft/step2/
+data/1.5/coarse_sft/step2/
 ├── final/
 │   ├── train.jsonl                 # 400条
 │   ├── validation.jsonl            # 100条
 │   └── test.jsonl                  # 100条
 └── report.json                     # 标签、工具和输出审查
 
-data/agentdog/1.5/coarse-grained/sft/step3/
+data/1.5/coarse_sft/step3/
 ├── intermediate/
 │   ├── lineage.jsonl                # 最终候选的紧凑血缘
 │   ├── reviews.jsonl                # 人工审核结论
@@ -186,11 +188,11 @@ data/agentdog/1.5/coarse-grained/sft/step3/
 ## 查看结果
 
 ```bash
-wc -l data/agentdog/1.5/coarse-grained/sft/step0/intermediate/candidates.jsonl
-wc -l data/agentdog/1.5/coarse-grained/sft/step0/final/selection.jsonl
-python3 -m json.tool data/agentdog/1.5/coarse-grained/sft/step0/report.json
-python3 -m json.tool data/agentdog/1.5/coarse-grained/sft/step1/report.json
-python3 -m json.tool data/agentdog/1.5/coarse-grained/sft/step2/report.json
+wc -l data/1.5/coarse_sft/step0/intermediate/candidates.jsonl
+wc -l data/1.5/coarse_sft/step0/final/selection.jsonl
+python3 -m json.tool data/1.5/coarse_sft/step0/report.json
+python3 -m json.tool data/1.5/coarse_sft/step1/report.json
+python3 -m json.tool data/1.5/coarse_sft/step2/report.json
 ```
 
 完整阶段契约见[粗粒度SFT数据总设计](../docs/agentdog15_reproduction/stages/01_judge_coarse_sft_data/README.md)，当前抽样规则见[Step 0设计](../docs/agentdog15_reproduction/stages/01_judge_coarse_sft_data/00_global_selection.md)。

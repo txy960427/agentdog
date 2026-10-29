@@ -138,42 +138,35 @@ Step 0必须在模型训练、算法工程、数据工程和数据分析四个�
 ## 7. 总目录与下一级文档
 
 ```text
-data/agentdog/
+data/
 ├── 1.0/
 │   └── source/AgentDoG1.0-Training-Data/      # 只读公开原料
 └── 1.5/
-    ├── coarse-grained/
-    │   └── sft/
-    │       ├── step0/                         # 全局候选、分组、采样和切分
-    │       │   ├── intermediate/
-    │       │   ├── final/
-    │       │   └── report.json
-    │       ├── step1/                         # 按清单转换Binary数据
-    │       │   ├── final/
-    │       │   └── report.json
-    │       ├── step2/                         # 按清单转换带工具unsafe
-    │       │   ├── final/
-    │       │   └── report.json
-    │       ├── step3/                         # 带工具safe twin生成
-    │       │   ├── intermediate/
-    │       │   ├── final/
-    │       │   └── report.json
-    │       └── step4/                         # CoT生成和SFT导出
-    │           ├── intermediate/
-    │           ├── final/
-    │           └── report.json
-    ├── fine-grained/
-    │   ├── sft/                               # 待规划
-    │   └── gdpo/                              # 待规划
-    └── main-agent/
-        ├── sft/                               # 待规划
-        └── rl/                                # 待规划
+    └── coarse_sft/
+        ├── step0/                         # 全局候选、分组、采样和切分
+        │   ├── intermediate/
+        │   ├── final/
+        │   └── report.json
+        ├── step1/                         # 按清单转换Binary数据
+        │   ├── final/
+        │   └── report.json
+        ├── step2/                         # 按清单转换带工具unsafe
+        │   ├── final/
+        │   └── report.json
+        ├── step3/                         # 带工具safe twin生成
+        │   ├── intermediate/
+        │   ├── final/
+        │   └── report.json
+        └── step4/                         # CoT生成和SFT导出
+            ├── intermediate/
+            ├── final/
+            └── report.json
 ```
 
 对应构建脚本统一放在：
 
 ```text
-data_pipeline/agentdog/1.5/coarse-grained/sft/
+data_pipeline/coarse_sft/
 ```
 
 1. [Step 0：全局候选池、采样与切分](00_global_selection.md)

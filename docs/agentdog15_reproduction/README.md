@@ -43,24 +43,19 @@ AgentDoG Judge
 
 ## 4. 训练数据设计
 
-根目录下的`data/`按版本、模型类型和训练阶段组织，与`model/agentdog/1.5/<size>/<coarse-grained|fine-grained>`保持同一语义层次。训练数据由不同模型规模共享，所以数据目录不再复制0.8B、2B、4B三级。`verl/`只保存训练框架代码，不再承载本项目的数据、模型、benchmark或外层评测代码：
+`data/`按数据版本和任务组织；管线与训练代码按任务组织，分别位于`data_pipeline/coarse_sft/`和`train/coarse_sft/`。仓库已经叫agentdog，不再重复嵌套同名目录，代码也不再增加`1.5`目录。训练数据由0.8B、2B、4B共享。`verl/`只保存训练框架代码：
 
 ```text
-data/agentdog/
+data/
 ├── 1.0/
 │   └── source/AgentDoG1.0-Training-Data/      # 只读公开原料
 └── 1.5/
-    ├── coarse-grained/
-    │   └── sft/                               # 当前阶段
-    ├── fine-grained/
-    │   ├── sft/                               # 待规划
-    │   └── gdpo/                              # 待规划
-    └── main-agent/
-        ├── sft/                               # 待规划
-        └── rl/                                # 待规划
+    └── coarse_sft/                         # 当前阶段
 ```
 
-目录约定同时记录在[data/agentdog/README.md](../../data/agentdog/README.md)。
+后续阶段确定后，使用`fine_sft`、`fine_gdpo`、`main_sft`、`main_rl`等任务名，不提前创建空目录。
+
+目录约定同时记录在[data/README.md](../../data/README.md)。
 
 ### 4.1 AgentDoG粗粒度SFT阶段数据设计
 
@@ -164,7 +159,7 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 ### 5.1 AgentDoG粗粒度SFT训练方案
 
-> 状态：待数据集设计冻结后规划。
+已提供LLaMA-Factory 0.8B全参SFT基线、完整长度预检与小样本试训入口，见[训练说明](../../train/coarse_sft/README.md)。GPU训练尚未开始。
 
 ### 5.2 AgentDoG细粒度SFT训练方案
 

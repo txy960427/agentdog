@@ -2,7 +2,7 @@
 
 论文：[AgentDoG 1.5, arXiv:2605.29801](https://arxiv.org/pdf/2605.29801)
 
-公开训练数据：[AgentDoG1.0 Training Data README](../../data/agentdog/1.0/source/AgentDoG1.0-Training-Data/README.md)
+公开训练数据：[AgentDoG1.0 Training Data README](../../data/1.0/source/AgentDoG1.0-Training-Data/README.md)
 
 本文件只记录会影响复现设计的证据。`论文结论`是论文明确披露，`复现含义`是本项目据此采取的动作。
 
