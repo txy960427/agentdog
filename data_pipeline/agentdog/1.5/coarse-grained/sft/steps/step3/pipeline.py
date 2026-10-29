@@ -28,6 +28,7 @@ OUTPUT_ROOT = PROJECT_ROOT / "data/agentdog/1.5/coarse-grained/sft/step3"
 PROMPT_ROOT = PROJECT_ROOT / "docs/agentdog15_reproduction/stages/01_judge_coarse_sft_data/prompts"
 GENERATOR_PROMPT_PATH = PROMPT_ROOT / "safe_twin_generator.txt"
 CHECKER_PROMPT_PATH = PROMPT_ROOT / "safe_twin_checker.txt"
+MANUAL_OVERRIDES_PATH = Path(__file__).with_name("manual_overrides.json")
 SPLITS = ("train", "validation", "test")
 EXPECTED = {"train": 400, "validation": 100, "test": 100}
 STRATEGIES = {
@@ -308,7 +309,20 @@ def rule_checks(parent: dict[str, Any], generated: dict[str, Any], candidate: di
             and len(events) > rewrite
             and not same_event(events[rewrite], parent_events[rewrite])
         )
-        checks["corrupted_feedback_preserved_or_prevented"] = preserved or prevented
+        # 多风险轨迹可能在受污染反馈出现前已经包含更早的不安全动作。
+        # 人工审核的early_intervention必须在该动作处直接终止，不能生成新工具反馈。
+        prevented_early = (
+            candidate.get("construction_mode") == "early_intervention"
+            and trigger is not None
+            and valid_rewrite
+            and rewrite < trigger - 1
+            and len(events) == rewrite + 1
+            and events[rewrite]["role"] == "agent"
+            and str(events[rewrite]["action"]).lstrip().startswith("Complete")
+        )
+        checks["corrupted_feedback_preserved_or_prevented"] = (
+            preserved or prevented or prevented_early
+        )
     return checks
 
 
@@ -453,6 +467,91 @@ def process_parent(
     return record
 
 
+def manual_record(parent: dict[str, Any], override: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """把人工审核的单点改写构造成普通候选，不调用生成器或检查器。"""
+    rewrite = override["rewrite_event_index"]
+    response = "Complete" + json.dumps(
+        {"response": override["response"]}, ensure_ascii=False, separators=(",", ":")
+    )
+    trajectory = parent["trajectory"][:rewrite] + [
+        {"role": "agent", "thought": override["risk_neutralization"], "action": response}
+    ]
+    candidate = {
+        "strategy": override["strategy"],
+        "risk_neutralization": override["risk_neutralization"],
+        "trajectory": trajectory,
+        "construction_mode": override["construction_mode"],
+    }
+    generated = {
+        "rewrite_event_index": rewrite,
+        "locked_prefix_event_indexes": list(range(rewrite)),
+        "preserve_constraints": [
+            "Preserve the original user request, profile, tools, identifiers, and every retained event."
+        ],
+    }
+    checks = rule_checks(parent, generated, candidate)
+    if not checks or not all(checks.values()):
+        failed = [name for name, passed in checks.items() if not passed]
+        raise PipelineError(f"manual override failed for {parent['id']}: {failed}")
+
+    model_checks = {field: True for field in CHECK_FIELDS}
+    model_checks.update({"pass": True, "reasons": []})
+    item = {
+        "candidate_id": f"{parent['id']}-manual0",
+        "strategy": override["strategy"],
+        "construction_mode": override["construction_mode"],
+        "rewrite_event_index": rewrite,
+        "raw_response": json.dumps({**generated, "candidates": [candidate]}, ensure_ascii=False),
+        "trajectory": trajectory,
+        "event_diff": event_diff(parent["trajectory"], trajectory),
+        "rule_pass": True,
+        "rule_checks": checks,
+        "model_pass": True,
+        "model_checks": model_checks,
+        "checker_status": "manual_approved",
+        "checker_raw_response": override["risk_neutralization"],
+        "selected": False,
+        "rejection_reasons": [],
+    }
+    manual_config = {
+        **config,
+        "generator_model": "manual-curation",
+        "checker_model": "human-semantic-audit",
+        "api_base_url": "offline",
+        "thinking": "not_applicable",
+        "reasoning_effort": "not_applicable",
+        "stream": False,
+    }
+    return {
+        "parent_id": parent["id"],
+        "pair_id": parent["pair_id"],
+        "split": parent["split"],
+        "risk_context": {
+            "risk_source": parent["target"]["risk_source"],
+            "failure_mode": parent["target"]["failure_mode"],
+            "real_world_harm": parent["target"]["real_world_harm"],
+        },
+        **manual_config,
+        "retry_guidance": "",
+        "attempts": [
+            {
+                "attempt": 0,
+                "response_id": f"manual:{parent['id']}",
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                "reasoning_returned": False,
+                "error": None,
+            }
+        ],
+        "candidates": [item],
+        "status": "generated",
+        "review_required": True,
+        "manual_override": {
+            "construction_mode": override["construction_mode"],
+            "reason": override["risk_neutralization"],
+        },
+    }
+
+
 def edit_score(parent: dict[str, Any], candidate: dict[str, Any]) -> tuple[int, int]:
     left, right = parent["trajectory"], candidate["trajectory"]
     changed = sum(a != b for a, b in zip(left, right)) + abs(len(left) - len(right))
@@ -515,6 +614,9 @@ def select_and_write(
     for record in sorted(records, key=lambda item: (item["split"], item["parent_id"])):
         for candidate in record["candidates"]:
             candidate["selected"] = False
+        # 人工复核失败的记录可能仍保留旧候选，必须等重跑成功后才能重新进入草稿。
+        if record.get("status") != "generated":
+            continue
         passing = [
             candidate
             for candidate in record["candidates"]
@@ -557,6 +659,28 @@ def review_template(records: list[dict[str, Any]], path: Path) -> None:
     rows = []
     for record in records:
         required = bool(record.get("review_required"))
+        if record.get("manual_override"):
+            candidate = next(
+                (item for item in record["candidates"] if item.get("selected")),
+                record["candidates"][0],
+            )
+            candidate_sha = hashlib.sha256(
+                stable_json(candidate["trajectory"]).encode("utf-8")
+            ).hexdigest()
+            rows.append(
+                {
+                    "parent_id": record["parent_id"],
+                    "pair_id": record["pair_id"],
+                    "required": True,
+                    "status": "approved",
+                    "reviewer": "manual-semantic-audit",
+                    "reason": record["manual_override"]["reason"],
+                    "construction_mode": record["manual_override"]["construction_mode"],
+                    "candidate_sha256": candidate_sha,
+                    "reviewed_at": datetime.now(UTC).isoformat(timespec="seconds"),
+                }
+            )
+            continue
         row = existing.get(record["parent_id"], {
             "parent_id": record["parent_id"],
             "pair_id": record["pair_id"],
@@ -566,6 +690,28 @@ def review_template(records: list[dict[str, Any]], path: Path) -> None:
             "reason": "",
             "reviewed_at": "",
         })
+        selected = next((item for item in record["candidates"] if item.get("selected")), None)
+        if selected:
+            compact_sha = hashlib.sha256(
+                stable_json(selected["trajectory"]).encode("utf-8")
+            ).hexdigest()
+            legacy_sha = hashlib.sha256(
+                json.dumps(selected["trajectory"], ensure_ascii=False, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            reviewed_sha = str(row.get("candidate_sha256", ""))
+            if reviewed_sha and reviewed_sha not in {compact_sha, legacy_sha}:
+                row = {
+                    "parent_id": record["parent_id"],
+                    "pair_id": record["pair_id"],
+                    "required": True,
+                    "status": "pending",
+                    "reviewer": "",
+                    "reason": "候选轨迹已重新生成，需要重新进行语义审核。",
+                    "candidate_sha256": compact_sha,
+                    "reviewed_at": "",
+                }
+            elif not reviewed_sha:
+                row["candidate_sha256"] = compact_sha
         row["required"] = required
         if required and row.get("status") == "not_required":
             row["status"] = "pending"
@@ -693,6 +839,16 @@ def generate(mode: str) -> None:
         if any(row.get(key) != config[key] for key in PROMPT_CONFIG_KEYS):
             raise PipelineError(f"existing Step 3 output uses another prompt: {row['parent_id']}")
 
+    manual_overrides = json.loads(MANUAL_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    selected_ids = {row["id"] for row in selected_parents}
+    unknown_overrides = set(manual_overrides) - selected_ids
+    if mode == "full" and unknown_overrides:
+        raise PipelineError(f"manual overrides reference unknown parents: {sorted(unknown_overrides)}")
+    for parent in selected_parents:
+        override = manual_overrides.get(parent["id"])
+        if override:
+            existing[parent["id"]] = manual_record(parent, override, config)
+
     pending_all = [
         row for row in selected_parents if existing.get(row["id"], {}).get("status") != "generated"
     ]
@@ -811,7 +967,7 @@ def generate(mode: str) -> None:
         },
     }
     (root / "report.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     print(f"Step 3 {mode} complete: {status}, generated={len(safe_rows)}/{expected}")
 
@@ -820,11 +976,30 @@ def finalize() -> None:
     report_path = OUTPUT_ROOT / "report.json"
     candidates_path = OUTPUT_ROOT / "intermediate/candidates.jsonl"
     reviews_path = OUTPUT_ROOT / "intermediate/reviews.jsonl"
+    quality_path = OUTPUT_ROOT / "intermediate/final_quality_audit.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))
     if report.get("mode") != "full" or report.get("generated") != 600:
         raise PipelineError("full Step 3 generation is not complete")
     if sha256_file(candidates_path) != report["outputs"]["candidates"]["sha256"]:
         raise PipelineError("Step 3 candidates changed after generation")
+    if not quality_path.exists():
+        raise PipelineError("Step 3 final quality audit has not been run")
+    quality = json.loads(quality_path.read_text(encoding="utf-8"))
+    if quality.get("status") != "pass":
+        raise PipelineError("Step 3 final quality audit still has actionable records")
+    if quality.get("inputs", {}).get("candidates") != sha256_file(candidates_path):
+        raise PipelineError("Step 3 candidates changed after final quality audit")
+    if quality.get("inputs", {}).get("reviews") != sha256_file(reviews_path):
+        raise PipelineError("Step 3 reviews changed after final quality audit")
+    if quality.get("inputs", {}).get("model_semantic_audit") != sha256_file(
+        OUTPUT_ROOT / "intermediate/model_semantic_audit.jsonl"
+    ):
+        raise PipelineError("Step 3 model audit changed after final quality audit")
+    for split in SPLITS:
+        if quality.get("inputs", {}).get("draft", {}).get(split) != sha256_file(
+            OUTPUT_ROOT / "draft" / f"{split}.jsonl"
+        ):
+            raise PipelineError(f"Step 3 {split} draft changed after final quality audit")
     records = read_jsonl(candidates_path)
     reviews = {row["parent_id"]: row for row in read_jsonl(reviews_path)}
 
@@ -860,15 +1035,62 @@ def finalize() -> None:
         write_jsonl(target, rows)
         outputs[split] = {"path": f"final/{split}.jsonl", "records": len(rows), "sha256": sha256_file(target)}
 
+    # 原始候选与API流水在验收后体积很大；只冻结最终候选的紧凑血缘。
+    lineage_path = OUTPUT_ROOT / "intermediate/lineage.jsonl"
+    lineage = []
+    for record in sorted(records, key=lambda row: row["parent_id"]):
+        chosen = next(row for row in record["candidates"] if row.get("selected"))
+        lineage.append({
+            "parent_id": record["parent_id"],
+            "pair_id": record["pair_id"],
+            "split": record["split"],
+            "risk_context": record["risk_context"],
+            "generator_model": record.get("generator_model"),
+            "checker_model": record.get("checker_model"),
+            "candidate_id": chosen["candidate_id"],
+            "strategy": chosen.get("strategy"),
+            "construction_mode": chosen.get("construction_mode", "generated"),
+            "rewrite_event_index": chosen.get("rewrite_event_index"),
+            "candidate_sha256": hashlib.sha256(
+                stable_json(chosen["trajectory"]).encode("utf-8")
+            ).hexdigest(),
+            "repair_history": record.get("repair_history", []),
+        })
+    write_jsonl(lineage_path, lineage)
+
     report["status"] = "pass"
+    report["review_required"] = 0
     report["finalized_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     report["human_review"] = {
         "required": sum(bool(record.get("review_required")) for record in records),
         "approved": sum(review.get("status") == "approved" for review in reviews.values()),
         "reviews_sha256": sha256_file(reviews_path),
     }
-    report["outputs"]["final"] = outputs
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report.pop("model_semantic_audit", None)
+    report.pop("repair", None)
+    report["outputs"] = {
+        "final": outputs,
+        "lineage": {
+            "path": "intermediate/lineage.jsonl",
+            "records": len(lineage),
+            "sha256": sha256_file(lineage_path),
+        },
+        "reviews": {
+            "path": "intermediate/reviews.jsonl",
+            "records": len(reviews),
+            "sha256": sha256_file(reviews_path),
+        },
+        "semantic_audit": {
+            "path": "intermediate/model_semantic_audit.jsonl",
+            "records": len(records),
+            "sha256": sha256_file(OUTPUT_ROOT / "intermediate/model_semantic_audit.jsonl"),
+        },
+        "quality_audit": {
+            "path": "intermediate/final_quality_audit.json",
+            "sha256": sha256_file(quality_path),
+        },
+    }
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     print("Step 3 finalize complete: 400/100/100")
 
 

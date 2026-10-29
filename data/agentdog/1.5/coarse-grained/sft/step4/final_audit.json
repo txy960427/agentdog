@@ -1,0 +1,210 @@
+{
+  "status": "pass",
+  "records": 1500,
+  "errors": [],
+  "manifest_files": 21,
+  "reconstructed_parents": 900,
+  "components": {
+    "binary_safe": 150,
+    "tool_unsafe": 600,
+    "tool_safe": 600,
+    "binary_unsafe": 150
+  },
+  "splits": {
+    "train": {
+      "safe": 500,
+      "unsafe": 500
+    },
+    "validation": {
+      "safe": 125,
+      "unsafe": 125
+    },
+    "test": {
+      "safe": 125,
+      "unsafe": 125
+    }
+  },
+  "unique_student_inputs": 1500,
+  "cross_split_groups": 0,
+  "cross_split_pairs": 0,
+  "cross_split_shared_user_texts": [
+    {
+      "text": "i'm sorry, but i can't assist with that request.",
+      "records": [
+        [
+          "tool_safe_7d51424de9de5cca",
+          "train"
+        ],
+        [
+          "tool_unsafe_13f1c6e1385b2b81",
+          "train"
+        ],
+        [
+          "tool_safe_13f1c6e1385b2b81",
+          "train"
+        ],
+        [
+          "binary_unsafe_256cd7ec31314866",
+          "train"
+        ],
+        [
+          "binary_unsafe_2a5d9896de444153",
+          "train"
+        ],
+        [
+          "binary_unsafe_4f5d568aa708e318",
+          "train"
+        ],
+        [
+          "tool_unsafe_58f72d77ed884d89",
+          "train"
+        ],
+        [
+          "tool_safe_c6a8395cc6c4ea4e",
+          "train"
+        ],
+        [
+          "tool_unsafe_6af0d6f36f3d81ea",
+          "train"
+        ],
+        [
+          "tool_safe_f868d8407f122a66",
+          "train"
+        ],
+        [
+          "binary_unsafe_c415503dac7cc0b6",
+          "train"
+        ],
+        [
+          "tool_unsafe_7d51424de9de5cca",
+          "train"
+        ],
+        [
+          "tool_safe_58f72d77ed884d89",
+          "train"
+        ],
+        [
+          "tool_safe_ee5edeb1fc1ab6be",
+          "train"
+        ],
+        [
+          "tool_safe_df230ea9e3a66eaa",
+          "train"
+        ],
+        [
+          "binary_unsafe_a8eee477216b2725",
+          "test"
+        ],
+        [
+          "tool_safe_6af0d6f36f3d81ea",
+          "train"
+        ],
+        [
+          "tool_unsafe_c6a8395cc6c4ea4e",
+          "train"
+        ],
+        [
+          "tool_unsafe_c96df188b21573c1",
+          "train"
+        ],
+        [
+          "tool_safe_c96df188b21573c1",
+          "train"
+        ],
+        [
+          "tool_unsafe_df230ea9e3a66eaa",
+          "train"
+        ],
+        [
+          "tool_unsafe_e261f9dec78aa7ca",
+          "train"
+        ],
+        [
+          "tool_unsafe_ee5edeb1fc1ab6be",
+          "train"
+        ],
+        [
+          "tool_unsafe_f868d8407f122a66",
+          "train"
+        ],
+        [
+          "tool_safe_e261f9dec78aa7ca",
+          "train"
+        ],
+        [
+          "tool_unsafe_4caffc24e7329b85",
+          "validation"
+        ],
+        [
+          "tool_safe_b650fd78e8bbcef7",
+          "validation"
+        ],
+        [
+          "tool_unsafe_b650fd78e8bbcef7",
+          "validation"
+        ],
+        [
+          "tool_safe_4caffc24e7329b85",
+          "validation"
+        ],
+        [
+          "tool_safe_cb3a620a1ddf78f0",
+          "test"
+        ],
+        [
+          "tool_safe_af355f98f5ec332c",
+          "test"
+        ],
+        [
+          "tool_unsafe_6b6794a91a534deb",
+          "test"
+        ],
+        [
+          "tool_safe_af4f7c4321732594",
+          "test"
+        ],
+        [
+          "tool_safe_b39caa378bf37fbf",
+          "test"
+        ],
+        [
+          "tool_unsafe_af355f98f5ec332c",
+          "test"
+        ],
+        [
+          "tool_unsafe_af4f7c4321732594",
+          "test"
+        ],
+        [
+          "tool_unsafe_b39caa378bf37fbf",
+          "test"
+        ],
+        [
+          "tool_unsafe_cb3a620a1ddf78f0",
+          "test"
+        ],
+        [
+          "tool_safe_6b6794a91a534deb",
+          "test"
+        ],
+        [
+          "tool_safe_fab23bf2b84a7036",
+          "test"
+        ],
+        [
+          "tool_unsafe_fab23bf2b84a7036",
+          "test"
+        ]
+      ]
+    }
+  ],
+  "cot_sources": {
+    "teacher_reused_after_manual_input_review": 36,
+    "api_generation": 1421,
+    "manual_cot_revision": 8,
+    "manual_trajectory_and_cot_revision": 27,
+    "independent_review_consensus": 8
+  },
+  "api_calls": 0,
+  "scope": "全量确定性核验；不等于1500条均经独立人工语义重标。通用拒绝句跨split复用已在Step 0记录，完整轨迹和工具不同。目标tokenizer长度另查。"
+}

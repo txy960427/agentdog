@@ -1,6 +1,6 @@
 # 阶段1：AgentDoG粗粒度SFT数据总设计
 
-> 当前状态：Step 0至Step 2已经实现并通过验收；Step 3代码与两套DeepSeek Prompt已经完成但尚未调用API；Step 4的数据契约与Teacher Prompt已确定、代码尚未实现。唯一正式规模是Train 1,000、Validation 250、Internal Test 250。
+> 当前状态（2026-10-29）：Step 0至Step 2已通过验收，Step 3已按400/100/100完成finalize。Step 4为pass，已导出全部1,500条Parquet：Train 1,000、Validation 250、Internal Test 250，各split的safe/unsafe均为1:1，待复核为0。35条冲突最终以33条定点修正和2条原输入双模型支持解决；最后6条修正后重新双模型盲判，12次全部为safe。原始响应和上游final保留，不替换parent、不改变gold或split；人工和模型修订来源分别记录。Teacher Prompt保持现有版本，不新增全量自动语义过滤；训练前需按目标tokenizer检查长度。
 
 ## 1. 最终要交给SFT训练器的数据
 
@@ -111,7 +111,7 @@ Step 0是唯一允许采样和分配split的阶段。Step 1和Step 2只按冻结
 
 统一字段只有9个：`id`、`group_id`、`pair_id`、`split`、`source`、`profile`、`tools`、`trajectory`、`target`。事件采用最小字段：user/environment使用`role + content`，agent使用`role + thought + action`。无法进入训练输入的逐条审计信息跟随本Step的关键中间文件保存，汇总统计进入`report.json`，不继续扩张canonical row。
 
-safe row的三维标签为`null`；其继承的风险配置只保存在Step 3 `intermediate/candidates.jsonl`的`risk_context`中，不能伪装成safe样本的细粒度gold label。
+safe row的三维标签为`null`；其继承的风险配置只保存在Step 3 `intermediate/lineage.jsonl`的`risk_context`中，不能伪装成safe样本的细粒度gold label。
 
 ## 5. Split与防泄漏规则
 
@@ -149,11 +149,9 @@ data/agentdog/
     │       │   ├── final/
     │       │   └── report.json
     │       ├── step1/                         # 按清单转换Binary数据
-    │       │   ├── intermediate/
     │       │   ├── final/
     │       │   └── report.json
     │       ├── step2/                         # 按清单转换带工具unsafe
-    │       │   ├── intermediate/
     │       │   ├── final/
     │       │   └── report.json
     │       ├── step3/                         # 带工具safe twin生成

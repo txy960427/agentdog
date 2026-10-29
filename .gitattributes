@@ -1,0 +1,7 @@
+# 数据清单与提示词按字节校验，跨Windows/Linux检出时保持LF。
+data/agentdog/1.5/** text eol=lf
+data_pipeline/** text eol=lf
+docs/agentdog15_reproduction/** text eol=lf
+judge_eval/*.py text eol=lf
+judge_eval/*.txt text eol=lf
+*.parquet -text

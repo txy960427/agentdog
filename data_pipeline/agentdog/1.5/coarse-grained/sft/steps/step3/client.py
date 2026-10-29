@@ -1,4 +1,4 @@
-"""OpenAI兼容接口；仅Step 3的pilot/full模式会实例化。"""
+"""Step 3/4共用的OpenAI兼容接口，支持JSON和普通文本。"""
 
 from __future__ import annotations
 
@@ -14,24 +14,26 @@ from steps.step0.source import PipelineError
 
 
 class OpenAICompatibleClient:
-    def __init__(self, model: str, max_tokens: int | None = None) -> None:
-        api_key = os.environ.get("STEP3_API_KEY", os.environ.get("DEEPSEEK_API_KEY", "")).strip()
+    def __init__(self, model: str, max_tokens: int | None = None, *, prefix: str = "STEP3") -> None:
+        setting = lambda name, default: os.environ.get(f"{prefix}_{name}", default)
+        api_key = setting("API_KEY", os.environ.get("DEEPSEEK_API_KEY", "") if prefix == "STEP3" else "").strip()
         if not api_key:
-            raise PipelineError("STEP3_API_KEY is required for Step 3 pilot/full")
-        base_url = os.environ.get(
-            "STEP3_BASE_URL",
-            os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-        ).rstrip("/")
+            raise PipelineError(f"{prefix}_API_KEY is required")
+        default_base = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com") if prefix == "STEP3" else "https://new.mrxiwang.eu.cc/v1"
+        base_url = setting("BASE_URL", default_base).rstrip("/")
         self.url = f"{base_url}/chat/completions"
         self.api_key = api_key
         self.model = model
-        self.max_tokens = max_tokens or int(os.environ.get("STEP3_MAX_TOKENS", "65536"))
-        self.timeout = int(os.environ.get("STEP3_TIMEOUT", "900"))
-        self.retries = int(os.environ.get("STEP3_RETRIES", "3"))
-        self.stream = os.environ.get("STEP3_STREAM", "false").strip().lower() == "true"
-        self.max_tokens_field = os.environ.get("STEP3_MAX_TOKENS_FIELD", "max_tokens")
+        self.max_tokens = max_tokens or int(setting("MAX_TOKENS", "65536"))
+        self.timeout = int(setting("TIMEOUT", "900"))
+        self.retries = int(setting("RETRIES", "3" if prefix == "STEP3" else "1"))
+        self.stream = setting("STREAM", "false" if prefix == "STEP3" else "true").strip().lower() == "true"
+        self.max_tokens_field = setting("MAX_TOKENS_FIELD", "max_tokens" if prefix == "STEP3" else "max_completion_tokens")
+        self.thinking = setting("THINKING", "enabled")
+        self.reasoning_effort = setting("REASONING_EFFORT", "high")
+        self.user_agent = setting("USER_AGENT", "Mozilla/5.0 AgentDoG-DataPipeline/1.1")
         if self.max_tokens_field not in {"max_tokens", "max_completion_tokens"}:
-            raise PipelineError("STEP3_MAX_TOKENS_FIELD must be max_tokens or max_completion_tokens")
+            raise PipelineError(f"{prefix}_MAX_TOKENS_FIELD must be max_tokens or max_completion_tokens")
 
     @staticmethod
     def _read_stream(response: Any) -> dict[str, Any]:
@@ -40,6 +42,8 @@ class OpenAICompatibleClient:
         reasoning_returned = False
         response_id = None
         usage: dict[str, Any] = {}
+        finish_reason = None
+        model = None
         for raw_line in response:
             line = raw_line.decode("utf-8", errors="replace").strip()
             if not line.startswith("data:"):
@@ -49,9 +53,11 @@ class OpenAICompatibleClient:
                 continue
             chunk = json.loads(data)
             response_id = chunk.get("id") or response_id
+            model = chunk.get("model") or model
             if isinstance(chunk.get("usage"), dict):
                 usage = chunk["usage"]
             for choice in chunk.get("choices", []):
+                finish_reason = choice.get("finish_reason") or finish_reason
                 delta = choice.get("delta") or choice.get("message") or {}
                 if delta.get("content") is not None:
                     content_parts.append(str(delta["content"]))
@@ -59,8 +65,10 @@ class OpenAICompatibleClient:
         return {
             "id": response_id,
             "usage": usage,
+            "model": model,
             "choices": [
                 {
+                    "finish_reason": finish_reason,
                     "message": {
                         "content": "".join(content_parts),
                         "reasoning_content": "streamed" if reasoning_returned else None,
@@ -70,15 +78,22 @@ class OpenAICompatibleClient:
         }
 
     def complete_json(self, prompt: str) -> dict[str, Any]:
-        """请求合法JSON；空content、限流和临时错误都会有限重试。"""
+        return self._complete(prompt, json_output=True)
+
+    def complete_text(self, prompt: str) -> dict[str, Any]:
+        """CoT使用普通文本，不能强制API返回JSON。"""
+        return self._complete(prompt, json_output=False)
+
+    def _complete(self, prompt: str, *, json_output: bool) -> dict[str, Any]:
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-            "thinking": {"type": os.environ.get("STEP3_THINKING", "enabled")},
-            "reasoning_effort": os.environ.get("STEP3_REASONING_EFFORT", "high"),
+            "thinking": {"type": self.thinking},
+            "reasoning_effort": self.reasoning_effort,
             "stream": self.stream,
         }
+        if json_output:
+            payload["response_format"] = {"type": "json_object"}
         payload[self.max_tokens_field] = self.max_tokens
         if self.stream:
             payload["stream_options"] = {"include_usage": True}
@@ -90,10 +105,7 @@ class OpenAICompatibleClient:
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 # 部分企业网关会拦截Python urllib的默认签名。
-                "User-Agent": os.environ.get(
-                    "STEP3_USER_AGENT",
-                    "Mozilla/5.0 AgentDoG-DataPipeline/1.1",
-                ),
+                "User-Agent": self.user_agent,
             },
             method="POST",
         )
@@ -111,13 +123,15 @@ class OpenAICompatibleClient:
                 content = str(message.get("content") or "").strip()
                 if not content:
                     raise ValueError("API returned empty content")
-                parsed = json.loads(content)
-                if not isinstance(parsed, dict):
+                parsed = json.loads(content) if json_output else None
+                if json_output and not isinstance(parsed, dict):
                     raise ValueError("API JSON output must be an object")
                 return {
                     "json": parsed,
                     "content": content,
                     "response_id": result.get("id"),
+                    "model": result.get("model"),
+                    "finish_reason": result["choices"][0].get("finish_reason"),
                     "usage": result.get("usage", {}),
                     # reasoning_content不进入数据文件，避免存储无用的内部推理文本。
                     "reasoning_returned": bool(message.get("reasoning_content")),

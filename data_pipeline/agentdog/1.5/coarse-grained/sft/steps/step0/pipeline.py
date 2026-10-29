@@ -663,7 +663,7 @@ def run() -> None:
         },
     }
     (OUTPUT_ROOT / "report.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
 
     print(f"Step 0 complete: {OUTPUT_ROOT}")

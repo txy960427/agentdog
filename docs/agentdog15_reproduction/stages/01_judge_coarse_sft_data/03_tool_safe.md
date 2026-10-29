@@ -1,6 +1,10 @@
 # Step 3：带工具safe孪生轨迹生成与转换
 
-> 状态：代码和Prompt v1已完成，固定使用DeepSeek OpenAI兼容接口；尚未发起API调用。默认生成器与检查器均为`deepseek-v4-pro`，正式目标是600条safe twin；本Step不生成CoT。
+> 状态（2026-10-28）：600条safe twin均已通过三模型语义复核。独立终验发现的20条证据归属/事实声明问题和4条`Complete`序列化问题已修复，返修记录均获两种独立模型通过；其中2条在首次返修后仍保留危险前缀，现已提前截断并重新通过三模型审核。9条模型分歧经逐条证据裁决均为误报。当前终验为`pass`，并已按400/100/100完成finalize。本Step不生成CoT。
+
+后续可使用[多模型语义审核Prompt](prompts/safe_twin_semantic_auditor.txt)对600条候选重复复核。每个候选必须通过配置中的全部模型与轮次；任意一次有证据的失败都会写入`model_semantic_failed.jsonl`并将对应review改为`rejected`，从而阻止其进入Step 4。
+
+被打回的候选使用[修复Prompt](prompts/safe_twin_repair.txt)和`steps/step3/repair.py`定向修复。修复只能保留当前候选在改写点之前的事件，并以一个`Complete`结束；禁止修改工具参数后复用旧环境结果。修复后仅重新审核候选哈希变化的记录。
 
 ## 1. 当前阶段的目标、来源和目标数据
 
@@ -15,7 +19,9 @@
 | Internal Test | 100 | 100 |
 | **合计** | **600** | **600** |
 
-safe twin必须保留同一场景、Profile、工具列表和风险暴露，只在原unsafe动作发生前改变Agent决策，使其拒绝、验证、确认、警告、fallback或停止风险路径。
+safe twin必须保留同一场景、Profile和工具列表，只在原unsafe动作发生前改变Agent决策，使其拒绝、验证、确认、警告、fallback或停止风险路径。通常保留同一风险暴露；若一个`Corrupted Tool Feedback` parent在污染反馈出现前已经发生更早的独立风险，则使用`early_intervention`在最早风险处直接终止，不为保留后续污染反馈而保留已经不安全的前缀。
+
+`early_intervention`不重新抽样或替换parent，必须继承原`group_id/pair_id/split`。候选只能保留改写点之前的原始事件，并以`Complete`终止；禁止新增工具调用、环境反馈或成功声明。人工构造定义保存在`steps/step3/manual_overrides.json`，来源和审核状态保存在候选及review记录中。
 
 ### 1.2 原始数据来源
 
@@ -118,7 +124,7 @@ data/agentdog/1.5/coarse-grained/sft/
 }
 ```
 
-safe row的三维字段必须为`null`。parent的三维标签描述风险场景，不是safe轨迹实际发生的failure/harm；它们保存到`intermediate/candidates.jsonl`的`risk_context`，用于配对检查和分布统计。
+safe row的三维字段必须为`null`。parent的三维标签描述风险场景，不是safe轨迹实际发生的failure/harm；它们最终保存到`intermediate/lineage.jsonl`的`risk_context`，用于配对检查和分布统计。
 
 ### 1.4 生成模型、检查模型和人工参与
 
@@ -152,11 +158,11 @@ data/agentdog/1.5/coarse-grained/sft/
 │   ├── validation.jsonl
 │   └── test.jsonl
 └── step3/
-    ├── pilot/                                 # 16条Prompt冻结样本
     ├── intermediate/
-    │   ├── candidates.jsonl                   # 候选、拒绝原因和parent lineage
-    │   └── reviews.jsonl                      # 正式人工审核
-    ├── draft/                                 # 600条模型生成草稿
+    │   ├── lineage.jsonl                      # 600条最终候选的紧凑血缘
+    │   ├── reviews.jsonl                      # 正式人工审核
+    │   ├── model_semantic_audit.jsonl         # 三模型聚合结论
+    │   └── final_quality_audit.json           # 最终验收摘要
     ├── final/
     │   ├── train.jsonl                        # finalize后400条safe输出
     │   ├── validation.jsonl                   # finalize后100条safe输出
@@ -176,13 +182,13 @@ data/agentdog/1.5/coarse-grained/sft/
 8. 两个候选都通过时，按改写最少、行为具体、事实一致、策略分布和结构接近程度确定性选择；
 9. 两个候选均失败时再生成一轮；仍失败则进入人工修复，修复结果必须通过同一套rule/model check；人工也无法修复时才返回Step 0替换同split、同Risk Source parent；
 10. 将选中候选转换为统一9字段canonical row，写入safe component split；
-11. 将prompt/model版本、全部候选、diff、策略、检查结果、人工结论和parent关系写入`intermediate/candidates.jsonl`，总体统计写入`report.json`。
+11. 生成期间将候选、diff和调用结果写入临时文件；finalize后只保留最终候选的parent关系、风险配置、策略、改写点和hash到`intermediate/lineage.jsonl`，总体统计写入`report.json`。
 
 禁止通过以下方式制造safe：删除整个风险上下文、等待危险工具报错、只删末尾Complete、在Complete中虚假声称成功，或修改工具description消除风险。
 
 生成器的唯一正式模板是[prompts/safe_twin_generator.txt](prompts/safe_twin_generator.txt)，模型检查器的唯一正式模板是[prompts/safe_twin_checker.txt](prompts/safe_twin_checker.txt)。实现时只能填充模板中声明的占位符，不得临时追加gold提示。
 
-`intermediate/candidates.jsonl`每个parent至少记录以下结构；候选可多于两个，但最终只能选择一个：
+生成期间的临时候选记录可多于两个，但最终只能选择一个；finalize后的`lineage.jsonl`只保留以下核心字段：
 
 ```json
 {
@@ -194,32 +200,14 @@ data/agentdog/1.5/coarse-grained/sft/
     "failure_mode": "Failure to Validate Tool Outputs",
     "real_world_harm": "Financial & Economic Harm"
   },
-  "prompt_sha256": "...",
   "generator_model": "provider/model@revision",
   "checker_model": "provider/model@revision",
-  "candidates": [
-    {
-      "candidate_id": "tool_unsafe_000123-c0",
-      "strategy": "verify",
-      "rewrite_event_index": 3,
-      "raw_response": "原始生成器输出",
-      "trajectory": [],
-      "event_diff": [],
-      "rule_pass": true,
-      "rule_checks": {},
-      "model_pass": true,
-      "model_checks": {},
-      "selected": true,
-      "rejection_reasons": []
-    }
-  ],
-  "review": {
-    "required": true,
-    "status": "approved",
-    "reviewer": "reviewer-id",
-    "reason": "risk is neutralized before execution",
-    "reviewed_at": "ISO-8601 timestamp"
-  }
+  "candidate_id": "tool_unsafe_000123-c0",
+  "strategy": "verify",
+  "construction_mode": "generated",
+  "rewrite_event_index": 3,
+  "candidate_sha256": "...",
+  "repair_history": []
 }
 ```
 
@@ -266,6 +254,7 @@ data/agentdog/1.5/coarse-grained/sft/
 - 无角色顺序损坏、重复事件或悬空反馈；
 - 原unsafe action及等价行为不存在；
 - 安全干预发生在unsafe动作之前。
+- `early_intervention`只用于污染反馈前已有独立风险的多风险轨迹，必须在污染反馈之前以`Complete`终止，并标记构造模式。
 
 ### 5.3 Model check
 
@@ -279,11 +268,12 @@ data/agentdog/1.5/coarse-grained/sft/
 
 - 输出400/100/100，每个Step 2 parent恰好对应一个safe twin；
 - 每对共享group、pair、split、Profile和Tools，且`source.parent_id`正确；
-- safe三维target全部为`null`，parent风险配置完整保存在`intermediate/candidates.jsonl`；
+- safe三维target全部为`null`，parent风险配置完整保存在`intermediate/lineage.jsonl`；
 - 全部最终入选safe twin通过rule/model check和pair consistency检查；未入选候选也保留失败原因；
 - Validation和Test共200条全部人工审核；Train按`sha256(pair_id)`排序，每个RS固定审核10条，共80条；另外审核所有自动检查冲突或重试样本，基础人工审核量为280条；
 - 安全策略覆盖与上限达标，无明显长度、调用、error或Complete标签捷径；
-- lineage可以追踪parent、所有候选、最终选择、prompt、模型和检查结果。
+- 紧凑lineage可以追踪parent、最终选择、策略、改写点、模型和候选hash；生成期失败响应不长期保留。
+- 人工override必须记录`construction_mode`、改写位置、理由、零token usage和人工审核者，且与自动候选执行相同Rule check。
 
 验收后将四个组件合并为Train 1,000、Validation 250和Internal Test 250，再进入[Step 4](04_cot_and_sft_export.md)生成CoT和最终SFT文件。
 

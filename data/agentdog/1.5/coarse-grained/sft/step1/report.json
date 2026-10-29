@@ -1,7 +1,7 @@
 {
   "stage": "agentdog-1.5/coarse-grained/sft/step1",
   "version": "1.0.0",
-  "created_at": "2026-10-26T07:08:58+00:00",
+  "created_at": "2026-10-29T01:04:00+00:00",
   "inputs": {
     "binary": {
       "path": "D:\\agentdog\\data\\agentdog\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-BinarySafety\\train.json",
@@ -40,11 +40,6 @@
     "cot_is_null": true
   },
   "outputs": {
-    "materialized": {
-      "path": "intermediate/materialized.jsonl",
-      "records": 300,
-      "sha256": "bfe40fcf2cf20ca7c5dfec793d079a07110ad99d8b5ba54bd749590514ab3a48"
-    },
     "train": {
       "path": "final/train.jsonl",
       "records": 200,

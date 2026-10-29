@@ -1,7 +1,7 @@
 {
   "stage": "agentdog-1.5/coarse-grained/sft/step2",
   "version": "1.0.0",
-  "created_at": "2026-10-26T07:08:59+00:00",
+  "created_at": "2026-10-29T01:04:01+00:00",
   "inputs": {
     "fine": {
       "path": "D:\\agentdog\\data\\agentdog\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-FineGrainedTaxonomy\\train.json",
@@ -81,11 +81,6 @@
     "cot_is_null": true
   },
   "outputs": {
-    "materialized": {
-      "path": "intermediate/materialized.jsonl",
-      "records": 600,
-      "sha256": "7f823925baf586aca505f4151a7c6b8c118a173abceddb5d39e6a98cb84024f1"
-    },
     "train": {
       "path": "final/train.jsonl",
       "records": 400,

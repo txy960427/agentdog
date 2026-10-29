@@ -57,6 +57,7 @@ ENV/
 **/outputs/
 logs/
 *.log
+*.local.ps1
 wandb/
 
 # Local eval dumps only — never write these into baseline_run/

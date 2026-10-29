@@ -33,7 +33,7 @@ AgentDoG Judge
 
 | 阶段 | 训练输入 | 阶段产物 | 当前规划状态 |
 |---|---|---|---|
-| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | Step 0至Step 2已产出；Step 3代码待运行；Step 4待实现 |
+| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | Step 4已通过并导出1,500条Parquet（1,000/250/250）；35条冲突已解决，训练尚未开始 |
 | 2. AgentDoG细粒度SFT | 细粒度轨迹、CoT、RS/FM/RWH | 细粒度SFT初始化模型 | 待规划 |
 | 3. AgentDoG细粒度GDPO | 细粒度query与可验证三维奖励 | AgentDoG细粒度模型 | 待规划 |
 | 4. 主执行Agent SFT | AgentDoG筛选后的安全轨迹与良性工具轨迹 | 主执行Agent SFT模型 | 待规划 |

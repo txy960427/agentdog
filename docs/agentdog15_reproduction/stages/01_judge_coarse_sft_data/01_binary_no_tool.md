@@ -90,8 +90,6 @@ data/
     └── 1.5/coarse-grained/sft/
         ├── step0/final/selection.jsonl         # 输入：冻结选择与split
         └── step1/
-            ├── intermediate/
-            │   └── materialized.jsonl          # 300条canonical parent
             ├── final/
             │   ├── train.jsonl                 # 200条
             │   ├── validation.jsonl            # 50条

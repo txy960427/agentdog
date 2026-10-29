@@ -190,23 +190,13 @@ def run() -> None:
 
     if OUTPUT_ROOT.exists():
         shutil.rmtree(OUTPUT_ROOT)
-    intermediate = OUTPUT_ROOT / "intermediate"
     final = OUTPUT_ROOT / "final"
-    intermediate.mkdir(parents=True)
-    final.mkdir()
+    final.mkdir(parents=True)
 
     order = {"train": 0, "validation": 1, "test": 2}
     converted.sort(key=lambda row: (order[row["split"]], row["id"]))
-    materialized_path = intermediate / "materialized.jsonl"
-    materialized_count = write_jsonl(materialized_path, converted)
-
-    outputs: dict[str, Any] = {
-        "materialized": {
-            "path": "intermediate/materialized.jsonl",
-            "records": materialized_count,
-            "sha256": sha256_file(materialized_path),
-        }
-    }
+    # final三个split已经完整覆盖全部记录，不再额外保存一份合并副本。
+    outputs: dict[str, Any] = {}
     for split in EXPECTED_SIZE:
         path = final / f"{split}.jsonl"
         count = write_jsonl(path, (row for row in converted if row["split"] == split))
@@ -250,7 +240,7 @@ def run() -> None:
         "outputs": outputs,
     }
     (OUTPUT_ROOT / "report.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
 
     print(f"Step 2 complete: {OUTPUT_ROOT}")
