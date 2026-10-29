@@ -554,7 +554,7 @@ def build_prompt_fields(
         return PromptFields(insert_available_tools_after_profile(traj, prose), "")
     if benchmark == "rjudge":
         traj = format_conversation(row, rjudge=True)
-        return PromptFields(insert_available_tools_after_profile(traj, "None"), "")
+        return PromptFields(insert_available_tools_after_profile(traj, "[]"), "")
     raise ValueError(f"Unsupported benchmark: {benchmark}")
 
 

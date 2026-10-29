@@ -11,7 +11,7 @@ TRANSFORMERS_VERSION="5.12.1"
 
 nvidia-smi
 "$PYTHON_BIN" --version
-"$PYTHON_BIN" -m pip install --upgrade pip setuptools wheel
+"$PYTHON_BIN" -m pip install --upgrade pip setuptools wheel -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 if [[ "$INSTALL_TORCH" == "1" ]]; then
   "$PYTHON_BIN" -m pip install --force-reinstall \

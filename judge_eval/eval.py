@@ -751,7 +751,7 @@ def arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        default="http://127.0.0.1:8000",
+        default="http://127.0.0.1:8001",
         help="OpenAI-compatible vLLM server that already has the model loaded",
     )
     parser.add_argument(

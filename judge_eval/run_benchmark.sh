@@ -72,11 +72,11 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 # ======================== 直接修改这里 ========================
-DEFAULT_SFT_MODEL_PATH="$PROJECT_ROOT/model/agentdog/1.5/${MODEL_SIZE}/coarse-grained/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
-DEFAULT_GDPO_MODEL_PATH="$PROJECT_ROOT/model/agentdog/1.5/${MODEL_SIZE}/fine-grained/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
+DEFAULT_SFT_MODEL_PATH="/home/models/xiaoyatang/agentdog/sft/${MODEL_SIZE}/AgentDoG1.5-Qwen3.5-${MODEL_SIZE}"
+DEFAULT_GDPO_MODEL_PATH="/home/models/xiaoyatang/agentdog/gdpo/${MODEL_SIZE}/AgentDoG1.5-FG-Qwen3.5-${MODEL_SIZE}"
 
 CUDA_VISIBLE_DEVICES="0"
-PORT="8000"
+PORT="8001"
 
 TENSOR_PARALLEL_SIZE=1
 DTYPE="bfloat16"
