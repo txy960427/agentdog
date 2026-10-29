@@ -1,0 +1,539 @@
+{
+  "reviewed_at": "2026-10-29T01:36:18+00:00",
+  "records": 50,
+  "api_calls": 0,
+  "cot_revised": 8,
+  "original_teacher_responses_preserved": true,
+  "manual_input_corrections": 2,
+  "records_detail": [
+    {
+      "id": "binary_safe_0066151a36c7abd3",
+      "old_key": "4242cedb4bf2eccf2bac490eda898c1f6a75bf152422e543d2359d9c0949cbce",
+      "current_key": "8b7b6971186cd3fc3fb805afd60e68520a644c41b19b0391fe8afba1aa27573a",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_019e5ca802a7d90a",
+      "old_key": "1aa18518e0c2d8b9d49099f2334abf92c0224173fc0fdad9bbadd28a6f97cc0f",
+      "current_key": "997937e35d40f9a3122613d9c61667eeeecefd5cf1948c74e8640c0ea92df4ea",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_3c99a937f5427ab3",
+      "old_key": "ddeba804aa1eac539061d7b671332a50b930b157a353f54917d9936f76405212",
+      "current_key": "a5a70f0c74b3f5eee4906614735fc5f384d58c1656b1112d1639d1d8eae29b52",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_06f956dab0daa328",
+      "old_key": "d73ac9cecedf8104e7ce0e711ccb9c62d3788e5cbd1bfe22780bc9d46af881a2",
+      "current_key": "22a02d9e9c3cc833aa1936ff6f7c020e314305357b38f9775a8674dc17f15a3f",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_01c109066eeac51c",
+      "old_key": "50b388eb6317d9fa806ff99571b0a0054b816baae66980d6f75f47484c62c568",
+      "current_key": "a271b8c0e7d33936e0f36950acfcf72d9d593f69c3bb11b3127027d445da2834",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_8aa392be7858f376",
+      "old_key": "3dcd80964ebdd86762fa4b685c26af143c747934b5b5f9360231ddb89a764c01",
+      "current_key": "3dcd80964ebdd86762fa4b685c26af143c747934b5b5f9360231ddb89a764c01",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_07ae9eea8be2e1ba",
+      "old_key": "24f667a5355576d73f296c7353b9ea46394d268b50ee2295297d39182662b7f7",
+      "current_key": "fc14576d5ab73c79f0b6dff59349c4eb47a3c32d6655af96c084a2ab2a45201b",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_01e5cc5b6acee566",
+      "old_key": "6ee691586fabb873dfd265dc484aa29ff6705bf5f3cc8f8a9591c6d7a2ce4380",
+      "current_key": "d2b11a7c553772bc76d6f3c86e4641ea94a0fbdef7fe99bcf969be96cb9c4e19",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_e6b2c1289ecc5ca9",
+      "old_key": "42c56a833bd0032413e26cf7adc2779fc368a6f09693ea8089ac232c830f5e72",
+      "current_key": "2ce8563402c8f116149b3dbe506744dc2db9333b1d5cd1589ba88909cf1f07e1",
+      "input_changes": [
+        "manual_safe_twin_correction"
+      ],
+      "revised_questions": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_09627056d4418b5d",
+      "old_key": "d96dca7e7bfba2e8ad5a820cb55f60c6bffce66e8cc3e640e009e25b0fa03e26",
+      "current_key": "fe6d08e8225ab7729037f4bc72bc5fb869a7f1b84ee71a672dc010e12f5d6779",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_0327ec8d0a92dc77",
+      "old_key": "d998cef16a975b7f9ee5f99ece17de43f55a4c38d0a50dd97ceda6fcc07b8ecf",
+      "current_key": "3bf72da2d9423fb00b922b348236b58b62c28caf0a0b23bc12326325f573e155",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_a6866393d10993cf",
+      "old_key": "ff9f001acadfb8850e0244a48b7b06d53dab832635ad13ded3874bf139909bbd",
+      "current_key": "7d5cbb6472a4eb3083fbac066268aa90efcadd6322e5a3496b82180f31889605",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_0cc46f4227232164",
+      "old_key": "1273c8f2af47d6b002dd6ab27e61390ef9562a5381a765b091092ecddae86e8e",
+      "current_key": "4ec44380c71613e5ee411575b4b897cf6c80f0cc957a2afb6cc10a9d44a6805d",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_040ab12baf14cb1d",
+      "old_key": "109906b73bd419b36338de34d9c467e759729a8c32ee6d06e310395d11731af8",
+      "current_key": "d7e47a93459a6ab6c60ab432c2f685533fe064b8c80ef92a3bb04b9efe2f686b",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_9ccf7ee3032b0bc9",
+      "old_key": "0fc4fbf461d0e642d2b8063c51563dde0d8a55e7e748aab954f34063b0fc0332",
+      "current_key": "0fc4fbf461d0e642d2b8063c51563dde0d8a55e7e748aab954f34063b0fc0332",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_11d14cab0ab4a31e",
+      "old_key": "e79d696ac0f58fec929037815bfa845e5c2c990f9ff2c8025d8394e388d7a28a",
+      "current_key": "d47140009ddf22b96ea53749145e691333d94c460d528b3eb68c7d2aa4c40e08",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [
+        1
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_0604177e758a0274",
+      "old_key": "16e58e3ccaf22ec230e645511f18259d714b80750be0485fcf36ab5aaa58f707",
+      "current_key": "1e70098ff14f995dc9759dfb2e424e6b38b08fe9e5fb3a8244d5a5fce05d5677",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_cb45ae35e1f65a23",
+      "old_key": "32c83806a45a285eec6be0ee4cf7b3955c4b36597b33cb8722d50a4862389295",
+      "current_key": "a2f1f99bfdb87c6f0bad330a1e3e98ea16c1eb6012c5b858bcaad6b7435a27de",
+      "input_changes": [
+        "complete_serialization",
+        "editor_note_removed"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_15a36ff3f49946a5",
+      "old_key": "2bedcdc32a37c553cedcdc6910cc157a821dbbdcbe5423b95f292d5473035c23",
+      "current_key": "a3ad30a0751f4d7bfb398af62a4e5ea9bee85672dd89ab2732bfca907a6d13b4",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_0606bb3543efa88b",
+      "old_key": "32c5d24e48f7700c36c60f7f06648352e59d1bf44550a1340e6ae3c5129eb157",
+      "current_key": "192bd178fc42d9cda082a486ff40cc80f79d82e4f4955bd7b45f04dd98d867fe",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_6de58c00195ecb94",
+      "old_key": "38b1402b5dc941c9f40ae975cb182b2193c3fd49cedb905ab03e21d07101bf24",
+      "current_key": "49ceb28399edd28762a7a13472e5c484ba45633b0ed82d78f3b996f412865070",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_19f8ae834dd5e861",
+      "old_key": "fe2a6f45bce94f5fc6375d5ccab78da195b7a39d3a16317394e905a0d6dbb9c9",
+      "current_key": "9a013eadb1efd90d2c71800b3850286e76c64991bae303f2410c87216da88618",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_063df6532688ccf3",
+      "old_key": "85e53a840aed29d46aee5ec2f3a0150735f791faa049ad5564089a50e92569d6",
+      "current_key": "49c128e37ea0358cf5aa85c21522c9ae3e8f742f226316e5f1b23d62305a15ca",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_dd11446c594953b7",
+      "old_key": "e6beb7b326ef20c9c8a7df56fcca40804ef28c2f485aa10f6b8b36ac1278a32d",
+      "current_key": "e6beb7b326ef20c9c8a7df56fcca40804ef28c2f485aa10f6b8b36ac1278a32d",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_1a12422d720b2a76",
+      "old_key": "4afc037b895af4935adfed26754f0b93f8b2c62a67bdcd27ab95db6279dfb833",
+      "current_key": "82050f99dee0cc6b0f00d4481c0a8df24b334c3b6fcf640da85a90bc14f773de",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_065740c241c4fbd7",
+      "old_key": "707a4d7e0f6959b273ed950bbc7061dd3cdb2bf30d473014dc883fbedde9a3c9",
+      "current_key": "3943661d9cf38b5f3fa14256cdff0c810d854ab827acec0fa86a6fadb815ce62",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_e0b505f17d283a06",
+      "old_key": "72742e394c85df340cd11664f80a484469604456ad53ba5fb264d24c3b828111",
+      "current_key": "9535540205c9841b578c9ff1abf90d9df225081c784cc84bfb7f7841c0711126",
+      "input_changes": [
+        "complete_serialization",
+        "editor_note_removed"
+      ],
+      "revised_questions": [
+        1,
+        4
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_1a4380507cdf3248",
+      "old_key": "e8c69ae139b803ea42e3c683aee6f517a1d94b206fe9ee51acc79876c41486cc",
+      "current_key": "9f85509b871a5ad75f3bb5923c85bb7a063cdee31ee545ae8eb45b5bb06a1251",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_06710649b76e6366",
+      "old_key": "17666c0f944a8b26c3a584a0e3287d431c1535a6072c1d01b999658a8641721b",
+      "current_key": "ad06ba11637aa4bd1e964ddd568715a8033f88583b2d5ced92322576c0e33dfe",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_a3cdd041615c2e76",
+      "old_key": "b5000128975b9e4b1164a9e5a6d79570c0474c24e3c8e1fea12a6b8ec9eb487f",
+      "current_key": "9ec0e88b835afceeeb5807e8b448685b55848434528bd60ee5db564ac97a1378",
+      "input_changes": [
+        "complete_serialization",
+        "editor_note_removed"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_1ad2ab1e7d11cfb8",
+      "old_key": "133bf5d65cf1177988113365de97ff82e925215564680ca204183a00a24ff9f8",
+      "current_key": "2eac2a0c104989ed0d037b0123b54db28b1ba7d4d8ca15c2a366b329824f441a",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_07c5dc771824095d",
+      "old_key": "ce0775a23e991ee31cf51a3a790d8f7cb421b9b1ce4ce7ff737ccc6e0444b3d7",
+      "current_key": "938562a37b4c16c8e57db598b10d046c2e9d26f4d010c57e0e0e08f9a3c767d5",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_f2a3a3ebe3689250",
+      "old_key": "dac086bcc0a2bc49c4fecc3ac16a32006e2ff38f72036fe65074f2de184e2ae0",
+      "current_key": "ed511f2ec20e23f64b568b81c98dac69695a41151ecd6d14459bfa314d7f8fa6",
+      "input_changes": [
+        "complete_serialization",
+        "editor_note_removed"
+      ],
+      "revised_questions": [
+        1,
+        4
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_1b8d29c60b2be463",
+      "old_key": "fd50db0e6adb7323382bab274ac63848b364336093e21e6790d1ca6a98e2b967",
+      "current_key": "92fa5f5b7c15e7d27687bfee6cae2f3e62afc4a1d48f2c4cba8d250e98bee9e3",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [
+        1
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_07c6d119f51464a4",
+      "old_key": "04b7da64cdd425dde11847ae037e6fa9bb42ffc912c261619671e283c8ffa5a8",
+      "current_key": "c9af31b88ea9b5c8f7acd4fc6aa086e7df84005236f7f2126e67b0f77ea197b6",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_4bb75624cec65329",
+      "old_key": "389ba779c699ad9617ef85a0cbb1f2bfc28b0d7bf1be92912442c5cce2ee6c6a",
+      "current_key": "389ba779c699ad9617ef85a0cbb1f2bfc28b0d7bf1be92912442c5cce2ee6c6a",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_1c0ae92833c044da",
+      "old_key": "cfba7e2629e4ec9722990a235966929bbcf4bf3aed4addd27877217add8f04cd",
+      "current_key": "87661e445f6fbd03b134670ffbf4b7b02f3dbf629a0a058b2c3dca266e5011e8",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_088d1325a0b3daa1",
+      "old_key": "3f54d554bc17f8fb994a5721c1f7e4b29ea2ea7bca49e9cd253841930b500088",
+      "current_key": "bc1d6a87e257448dc8ec98e1ee77ddf3aeaa0e13720867ecf44dcf748d8f5ef1",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_862eba80f404bddc",
+      "old_key": "3b7d9a002c06ea2cd89194fda1ba9bc261f18e3331ec35240b7684e9bf7af063",
+      "current_key": "8c22b31b0787370fb169eebd6b52b1801fa8ea4c460b3d3686ca70e5a07b216d",
+      "input_changes": [
+        "manual_safe_twin_correction"
+      ],
+      "revised_questions": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_201f9d26dd01be52",
+      "old_key": "676d178fc4e15739d63d09f8dfac8a762073403f174ae3d58b8460b3f7a405c3",
+      "current_key": "65c608a2d5f787b2ee4945f58ee969d4abc50d99f7728465d0723bccc18f439f",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_0905e82507764618",
+      "old_key": "307d67bd70d82d3d9287965a8cb648347f545136122eb7fd9c4ebb3b49678b1c",
+      "current_key": "4c1f314fa0065dab604ef3553cecbd9dc2e368d8368c70528e73b8385bfacde8",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_a19240bf8b85e4e7",
+      "old_key": "1518424faf3785617150d781163d2ec90d54bdf3fbcec67e23e1cdf745af4182",
+      "current_key": "1518424faf3785617150d781163d2ec90d54bdf3fbcec67e23e1cdf745af4182",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_20efe9d9bf48bf69",
+      "old_key": "47e620ad0eaefb568131c798483ac4212d7f8c350dce8e67c7fb846d55ca7aab",
+      "current_key": "4087c3f58f6d16799c9f0aec5b5a0a1ad5aab0bd15acd25e7ed95a4895af1a44",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_0961c06342611655",
+      "old_key": "0f1e31be351fd5f5e5244bb4e955607c959517a1f0f32be4640b51eaa9d4578e",
+      "current_key": "6604020ae9698c96e9c9e32de3ad952e9116280919d17df8e240b84fc82a3182",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_5417b77ba48c0b66",
+      "old_key": "493c1c1b0d115d834de52c1965c217e93f5859363b54d22e9b4a4ceb400e9afe",
+      "current_key": "f6e191cca5fee2aade072da6c4c01ad349c4860e747bf83697658da4f19aad85",
+      "input_changes": [
+        "complete_serialization",
+        "editor_note_removed"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_2372c8859ff5d162",
+      "old_key": "6c6233d796c14a0bc47217ef7da18c7ef0dcbdff4ff695f5d221133ed435a7cf",
+      "current_key": "de944e47972882b400eaefa32a7a55f35d391057ae414eb31598286822655875",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [
+        3
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_09b051ffa4a52686",
+      "old_key": "179e721329e4fffded7c275556ec0080824d48d14d43e640b5f67be1710d8ebc",
+      "current_key": "778fdf3cfab062558f21ca097676ca0f338c2d9c4fbee3930e227ad422fdc554",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "tool_safe_0c0c5d9cabfd5c73",
+      "old_key": "a0df4ed34a9f02d0b1b8b58e0bfffd6b73a9055bccf74501e3956305d877e9f8",
+      "current_key": "a0df4ed34a9f02d0b1b8b58e0bfffd6b73a9055bccf74501e3956305d877e9f8",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    },
+    {
+      "id": "binary_safe_23ffffe151815c06",
+      "old_key": "ce94448453bba15bdd41bad4644b9e567447af5985f83c5e06e87043c11676e7",
+      "current_key": "c4ba486b250bdd25ff592f86cbf7d1e429b31906fc71da656384b6a3cb56230e",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [
+        1
+      ],
+      "status": "approved"
+    },
+    {
+      "id": "tool_unsafe_09c38e2973470d7b",
+      "old_key": "f956202aae048caca4f4427fd4edabe8e89a4c3c2aff1497c48c0bb32e5d6094",
+      "current_key": "25d8f668b0266c78fcb9d35cef8698cf564b82ea55f1c54ce999299190f9b359",
+      "input_changes": [
+        "complete_serialization"
+      ],
+      "revised_questions": [],
+      "status": "approved"
+    }
+  ]
+}

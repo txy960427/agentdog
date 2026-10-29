@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-29",
+  "base_url": "https://new.mrxiwang.eu.cc/v1",
+  "model": "gpt-6.1-sol",
+  "short_request_max_tokens": 256,
+  "observed_burst_concurrency": {
+    "workers": 8,
+    "success": 8,
+    "requests": 8,
+    "seconds": 5.531
+  },
+  "server_rate_limit_message": "1分钟内最多请求10次",
+  "continuous_test": {
+    "request_interval_seconds": 6.5,
+    "success_before_429": 10,
+    "failed_request_number": 11,
+    "seconds": 83.266
+  },
+  "limitations": [
+    "实测确认至少支持8个同时在途的短请求，没有测出硬并发上限。",
+    "6.5秒间隔仍触发429，不能承诺严格按10RPM持续无错。",
+    "真实CoT测试出现过502网关错误和503上游过载；这类错误不能直接归因于本地并发数。"
+  ],
+  "production_configuration": {
+    "workers": 4,
+    "global_request_interval_seconds": 8,
+    "max_attempts_per_record": 3,
+    "429_global_cooldown_seconds": 65,
+    "502_503_default_cooldown_seconds": 30,
+    "honor_longer_retry_after_in_error_body": true,
+    "single_checkpoint_writer": true,
+    "save_inflight_results_on_stop": true
+  },
+  "real_cot_trial": {
+    "generated_before": 99,
+    "generated_after": 108,
+    "new_outputs_saved": 9,
+    "final_api_failed_records": 0,
+    "existing_label_conflicts_preserved": 2,
+    "pending_records": 1390
+  },
+  "validation": {
+    "offline_tests_passed": 13,
+    "all_1500_inputs_dry_run": "pass"
+  },
+  "details": [
+    "intermediate/teacher_outputs.jsonl",
+    "report.json"
+  ],
+  "cleanup_note": "Retained conclusions; raw probe responses and the one-off probe script were removed after completion."
+}

@@ -1,0 +1,15 @@
+{
+  "stage": "coarse_sft/step3/model-semantic-audit",
+  "status": "pass",
+  "models": [
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-6.1-sol"
+  ],
+  "rounds": 1,
+  "strict_policy": "all configured checks must pass",
+  "records": 600,
+  "counts": {
+    "approved": 600
+  }
+}

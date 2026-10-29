@@ -33,7 +33,7 @@ AgentDoG Judge
 
 | 阶段 | 训练输入 | 阶段产物 | 当前规划状态 |
 |---|---|---|---|
-| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | 数据设计已展开，训练方案待补 |
+| 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | Step 4已通过并导出1,500条Parquet（1,000/250/250）；当前为未做影响函数净化的SFT基线，训练尚未开始 |
 | 2. AgentDoG细粒度SFT | 细粒度轨迹、CoT、RS/FM/RWH | 细粒度SFT初始化模型 | 待规划 |
 | 3. AgentDoG细粒度GDPO | 细粒度query与可验证三维奖励 | AgentDoG细粒度模型 | 待规划 |
 | 4. 主执行Agent SFT | AgentDoG筛选后的安全轨迹与良性工具轨迹 | 主执行Agent SFT模型 | 待规划 |
@@ -43,24 +43,19 @@ AgentDoG Judge
 
 ## 4. 训练数据设计
 
-根目录下的`data/`按版本、模型类型和训练阶段组织，与`model/agentdog/1.5/<size>/<coarse-grained|fine-grained>`保持同一语义层次。训练数据由不同模型规模共享，所以数据目录不再复制0.8B、2B、4B三级。`verl/`只保存训练框架代码，不再承载本项目的数据、模型、benchmark或外层评测代码：
+`data/`按数据版本和任务组织；管线与训练代码按任务组织，分别位于`data_pipeline/coarse_sft/`和`train/coarse_sft/`。仓库已经叫agentdog，不再重复嵌套同名目录，代码也不再增加`1.5`目录。训练数据由0.8B、2B、4B共享。`verl/`只保存训练框架代码：
 
 ```text
-data/agentdog/
+data/
 ├── 1.0/
 │   └── source/AgentDoG1.0-Training-Data/      # 只读公开原料
 └── 1.5/
-    ├── coarse-grained/
-    │   └── sft/                               # 当前阶段
-    ├── fine-grained/
-    │   ├── sft/                               # 待规划
-    │   └── gdpo/                              # 待规划
-    └── main-agent/
-        ├── sft/                               # 待规划
-        └── rl/                                # 待规划
+    └── coarse_sft/                         # 当前阶段
 ```
 
-目录约定同时记录在[data/agentdog/README.md](../../data/agentdog/README.md)。
+后续阶段确定后，使用`fine_sft`、`fine_gdpo`、`main_sft`、`main_rl`等任务名，不提前创建空目录。
+
+目录约定同时记录在[data/README.md](../../data/README.md)。
 
 ### 4.1 AgentDoG粗粒度SFT阶段数据设计
 
@@ -72,40 +67,44 @@ data/agentdog/
 
 | Split | 条数 | 比例 | 用途 |
 |---|---:|---:|---|
-| Train | 1,000 | 80% | 参数训练 |
-| Validation | 125 | 10% | 选择epoch、checkpoint和数据版本 |
-| Internal Test | 125 | 10% | 所有规则冻结后做一次同分布测试 |
-| **合计** | **1,250** | **100%** |  |
+| Train | 1,000 | 66.7% | 参数训练 |
+| Validation | 250 | 16.7% | 选择epoch、checkpoint和数据版本 |
+| Internal Test | 250 | 16.7% | 所有规则冻结后做一次同分布测试 |
+| **合计** | **1,500** | **100%** |  |
 
-论文披露的是roughly 1k训练样本，所以1,000对应Train，而不是Train、Validation和Test三者总和。正式论文指标另外在R-Judge和ATBench上测试，外部benchmark不计入这1,250条。
+论文披露的是roughly 1k训练样本，所以1,000对应Train。Validation和Internal Test各250条，整体按8:2:2构建。正式论文指标另外在R-Judge和ATBench上测试。
 
 #### 4.1.2 数据组成
 
 | 数据组件 | Train | Validation | Internal Test | 来源与构造方式 |
 |---|---:|---:|---:|---|
-| 无显式工具列表safe | 100 | 12 | 13 | v1.0 BinarySafety去重、清洗和分层抽样 |
-| 无显式工具列表unsafe | 100 | 13 | 12 | v1.0 BinarySafety去重、清洗和分层抽样 |
-| 带工具unsafe | 400 | 50 | 50 | v1.0 FineGrainedTaxonomy清洗和分层抽样 |
-| 带工具safe | 400 | 50 | 50 | 对带工具unsafe逐条生成一一对应safe twin |
-| **合计** | **1,000** | **125** | **125** |  |
+| 无显式工具列表safe | 100 | 25 | 25 | v1.0 BinarySafety去重、清洗和分层抽样 |
+| 无显式工具列表unsafe | 100 | 25 | 25 | v1.0 BinarySafety去重、清洗和分层抽样 |
+| 带工具unsafe | 400 | 100 | 100 | v1.0 FineGrainedTaxonomy清洗和分层抽样，保留RS/FM/RWH |
+| 带工具safe | 400 | 100 | 100 | 对带工具unsafe逐条生成一一对应safe twin |
+| **合计** | **1,000** | **250** | **250** |  |
 
-Train严格保持500 safe和500 unsafe。Validation为62 safe、63 unsafe；Internal Test为63 safe、62 unsafe，两个非训练split合计后标签严格平衡。
+三个split内部都保持safe/unsafe严格平衡。FineGrained的RS、FM、RWH三个标签同时保留，用于本阶段分层、审计和后续阶段的候选种子；这600条不能直接视为尚未规划的细粒度SFT/GDPO完整训练集。
 
 #### 4.1.3 数据构建步骤
 
-1. 清洗和抽样v1.0 BinarySafety，构造无显式工具列表的safe/unsafe部分；
-2. 清洗和抽样v1.0 FineGrainedTaxonomy，构造带工具unsafe部分；
-3. 对每条带工具unsafe轨迹生成一个同场景、同工具、同split的safe twin；
-4. 对Train、Validation和Internal Test统一生成四问CoT，组装相同结构的完整参考答案；测试时只取user消息推理，不把参考assistant消息送给模型。
+1. Step 0统一解析BinarySafety和FineGrainedTaxonomy，跨来源去重和grouping，排除benchmark近重复，冻结900条parent及其split；
+2. Step 1按冻结清单转换300条BinarySafety，构造无显式工具列表的safe/unsafe部分，不再抽样；
+3. Step 2按冻结清单转换600条FineGrainedTaxonomy，构造带工具unsafe部分并保留三维标签，不再抽样；
+4. Step 3对每条带工具unsafe轨迹生成一个同场景、同工具、同split的safe twin；
+5. Step 4对Train、Validation和Internal Test统一生成四问CoT，组装相同结构的完整参考答案；测试时只取user消息推理，不把参考assistant消息送给模型。
+
+Step 0是本阶段唯一允许采样和分配split的阶段。它必须从模型训练、算法工程、数据工程和数据分析四个视角完成验收；任何跨阶段近重复落入不同split时都不得进入下游。
 
 下一级设计文档：
 
 1. [阶段1总设计](stages/01_judge_coarse_sft_data/README.md)
-2. [BinarySafety清洗与抽样](stages/01_judge_coarse_sft_data/01_binary_no_tool.md)
-3. [带工具unsafe清洗与抽样](stages/01_judge_coarse_sft_data/02_tool_unsafe.md)
-4. [带工具safe twin生成](stages/01_judge_coarse_sft_data/03_tool_safe.md)
-5. [CoT生成、占位符、解析与SFT导出](stages/01_judge_coarse_sft_data/04_cot_and_sft_export.md)
-6. [最终粗粒度CoT Teacher Prompt](stages/01_judge_coarse_sft_data/prompts/coarse_cot_teacher.txt)
+2. [全局候选池、采样与切分](stages/01_judge_coarse_sft_data/00_global_selection.md)
+3. [按清单转换BinarySafety](stages/01_judge_coarse_sft_data/01_binary_no_tool.md)
+4. [按清单转换带工具unsafe](stages/01_judge_coarse_sft_data/02_tool_unsafe.md)
+5. [带工具safe twin生成](stages/01_judge_coarse_sft_data/03_tool_safe.md)
+6. [CoT生成、占位符、解析与SFT导出](stages/01_judge_coarse_sft_data/04_cot_and_sft_export.md)
+7. [最终粗粒度CoT Teacher Prompt](stages/01_judge_coarse_sft_data/prompts/coarse_cot_teacher.txt)
 
 #### 4.1.4 最终数据格式
 
@@ -133,8 +132,8 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 | 测试类型 | 数据 | 作用 |
 |---|---|---|
-| Validation | 内部125条Validation | 训练中选择checkpoint |
-| Internal Test | 内部125条Test | 冻结后检查同分布泛化 |
+| Validation | 内部250条Validation | 训练中选择checkpoint |
+| Internal Test | 内部250条Test | 冻结后检查同分布泛化 |
 | External Test | R-Judge、ATBench | 对齐论文粗粒度核心指标 |
 | Adaptation Test | ATBench-Codex、ATBench-Claw | 单独进行格式适配后报告，不与主粗粒度测试混合 |
 
@@ -160,7 +159,7 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 ### 5.1 AgentDoG粗粒度SFT训练方案
 
-> 状态：待数据集设计冻结后规划。
+已提供LLaMA-Factory 0.8B全参SFT基线、完整长度预检与小样本试训入口，见[训练说明](../../train/coarse_sft/README.md)。GPU训练尚未开始。
 
 ### 5.2 AgentDoG细粒度SFT训练方案
 

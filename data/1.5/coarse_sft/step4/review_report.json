@@ -1,0 +1,102 @@
+{
+  "created_at": "2026-10-29T06:21:32+00:00",
+  "models": [
+    "gpt-6-sol",
+    "gpt-6-astra"
+  ],
+  "cases": 6,
+  "counts": {
+    "accepted": 6
+  },
+  "results": [
+    {
+      "id": "tool_safe_81912a4ee0dae7e5",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "ced78ed43035a52236f40c173c9f0c324202ec0979a3110d331363ccc76fb725",
+        "d9973789b826b93097c1e30932fdfe5eb1cc93f242413e1fd9f210cf2de2536f"
+      ]
+    },
+    {
+      "id": "tool_safe_c123915f4284275c",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "114931b6b351d97d88d05eaedd47ffd53dbb6b7b5814440b80d90f64d9454812",
+        "d385ad1a2bda8758fd173561cfafa9ee432798a07e7b860ed66bb74e4b4be489"
+      ]
+    },
+    {
+      "id": "tool_safe_e76da6b215dbeae2",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "5feeffe8ad5800db21ecb16165ed58d94d38bf5c9fc9875e0b83f8f21828452e",
+        "c02e77eb8060a2327f7dbad43d3b3a11cec9507ece2f135ce9ed3a23c7b74a09"
+      ]
+    },
+    {
+      "id": "tool_safe_142706ba331299a2",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "75fde9ee374720853cd8b7f7528f9e58958d1daa1abf8b70510334cddfc2132e",
+        "8a9e0279669130fcdf05c0be0067bdf4c4dee81beecda7fc7515fa49e98d81ee"
+      ]
+    },
+    {
+      "id": "tool_safe_e61cff387326012a",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "a1d65763ab86647a3ef88d252b63e344055decdb0c0aca001e66a9007df074fe",
+        "abade1b01c9472f046ebabcdb905df568f8f97db2b7e1844f9c89788b3d6ba1f"
+      ]
+    },
+    {
+      "id": "tool_safe_41e1c3a1d8eb9b51",
+      "gold": "safe",
+      "labels": {
+        "gpt-6-sol": "safe",
+        "gpt-6-astra": "safe"
+      },
+      "decision": "accepted",
+      "review_keys": [
+        "17829500909bf3257a6cfcbb7c14a11256533e9ea3f1debb479423b15085955d",
+        "41aa33ec56e405af6169865c0ea8b03293cfd7c1d6313cc6a098a6dae9aedcf4"
+      ]
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 76070,
+    "completion_tokens": 12191,
+    "total_tokens": 88261
+  },
+  "inputs": {
+    "teacher_prompt_sha256": "c06e89e2ace7bbc7bdcb23b68170918505a58ef5a0f9230a6768c119ad133378"
+  },
+  "outputs": {
+    "reviews": "intermediate/independent_reviews.jsonl"
+  }
+}

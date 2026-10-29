@@ -2,17 +2,17 @@
 
 论文：[AgentDoG 1.5, arXiv:2605.29801](https://arxiv.org/pdf/2605.29801)
 
-公开训练数据：[AgentDoG1.0 Training Data README](../../data/agentdog/1.0/source/AgentDoG1.0-Training-Data/README.md)
+公开训练数据：[AgentDoG1.0 Training Data README](../../data/1.0/source/AgentDoG1.0-Training-Data/README.md)
 
 本文件只记录会影响复现设计的证据。`论文结论`是论文明确披露，`复现含义`是本项目据此采取的动作。
 
 <a id="e1"></a>
 ## E1：Judge任务与CoT输出
 
-- **位置**：论文 `AgentDoG` 章节，`Task Definition / Prompting`；附录 `CoT Generation Template`。
+- **位置**：本地`AgentDoG 1.5.pdf`第10页§3.2.1，附录第36–37页B.1 `CoT Generation Template`，第38–39页B.2 `Coarse Judgment Prompt Template`。
 - **论文结论**：1.5版在最终标签前加入显式CoT，并称GPT-5.4为每个训练样本生成详细推理。粗粒度任务分析证据、意图、具体后果和安全影响，再输出二分类；细粒度任务先解释三个风险维度，再输出三个标签。
-- **公开文本缺口**：附录的粗粒度`CoT Generation Template`列出四个问题，但其输出框只写`<Judgment> safe or unsafe </Judgment>`；同一附录的`Coarse Judgment Prompt Template`才明确要求`<Analysis>`回答四问后再输出`<Judgment>`。论文没有公开teacher调用外壳、解码参数、重试规则或最终SFT row。
-- **复现含义**：teacher仍使用论文粗粒度CoT生成模板，但把其明显缺失的输出约束补为`<Analysis>`回答四问后输出`<Judgment>`；student输入继续使用已验证的Judge usage prompt。需要对齐的是teacher输出和SFT assistant目标，不要求两套输入prompt逐字相同。不能声称这个补全就是作者未公开的GPT-5.4请求原文。canonical数据先保存轨迹和标签，Step 4再生成CoT；训练输出不能只保留单个label。
+- **公开文本缺口**：B.1粗粒度模板列出四个问题，但第37页续框只要求`<Judgment> safe or unsafe </Judgment>`，没有Analysis或输入占位符；B.2才明确要求`<Analysis>`回答四问后再输出`<Judgment>`，并含trajectory和工具列表两个槽。B.1导语明确仅细粒度模板提供oracle labels；不能将该标签引导规则套用于粗粒度。论文没有公开粗粒度teacher调用外壳、解码参数、重试规则或最终SFT row。
+- **复现含义**：teacher保留B.1的Task、Q1–Q4和safe note，显式补Profile/Tools/Trajectory输入块，并参照B.2补成四问`<Analysis>`后输出`<Judgment>`；输入块和格式规则属于项目补充。student继续使用已验证的Judge usage prompt。需要对齐的是teacher输出和SFT assistant目标，不要求两套输入prompt逐字相同。粗粒度Teacher输入不提供gold，冲突不能机械改标签。不能声称这个补全就是作者未公开的GPT-5.4请求原文。canonical数据先保存轨迹和标签，Step 4再生成CoT；训练输出不能只保留单个label。
 
 <a id="e2"></a>
 ## E2：数据引擎的风险配置与safe/unsafe孪生
@@ -41,6 +41,9 @@
 - **位置**：论文 `Data Purification`，公式 `guardrail-target-direction` 和 `guardrail-prism-score`。
 - **论文结论**：论文用 `Q_safe` 的正负回答梯度构造guardrail方向，对候选SFT样本评分，保留高分样本，最终数据缩减至roughly 1k。
 - **复现含义**：1,000是训练集目标，不是train/validation/test总和。公开材料没有 `Q_safe` 和最终样本ID，因此第一版先做可审计的分层质量选择，影响函数作为后续独立升级。
+- **实现状态**：当前Step 0–4和0.8B训练入口均未做此项；规则/语义审核与梯度训练价值筛选不是同一件事。当前1000条Train只能称为无影响函数净化的SFT基线。
+- **公式核对**：本地PDF第10–11页式(4)–(8)：目标正/负回答按token平均NLL求梯度，按参考模型对正回答的归一化似然偏好加权；候选样本按序列总NLL求梯度，再与目标梯度对比方向做内积。式(8)写出的分数是`g_z^T g_guard`，没有显式Hessian逆。正/负回答指风险判断正确/错误，不是safe/unsafe两个类别。
+- **补齐边界**：`Q_safe`的具体样本/规模、参考checkpoint、候选池规模和保留ID未在该节给出。若自行补齐，需要声明这些工程选择；从更大训练候选池挑选，不能在现有1000条里排序后仍全部保留，或混入冻结的validation/test及benchmark来凑1000。
 
 <a id="e6"></a>
 ## E6：Judge训练顺序

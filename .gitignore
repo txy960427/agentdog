@@ -47,17 +47,22 @@ ENV/
 # Local model snapshots and training datasets
 /model/
 /data/*
-!/data/agentdog/
-/data/agentdog/*
-!/data/agentdog/README.md
+!/data/README.md
+!/data/1.5/
+!/data/1.5/**
 
 # Training / eval artifacts
 **/outputs/
 logs/
 *.log
+*.local.ps1
 wandb/
 
 # Local eval dumps only — never write these into baseline_run/
 /judge_eval/runs/
+/train/**/runs/
 /_setup_downloads/
 /tmp/
+AGENTS.md
+specs/*
+jev/*

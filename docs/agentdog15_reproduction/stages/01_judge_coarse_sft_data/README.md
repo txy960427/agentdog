@@ -1,5 +1,7 @@
 # 阶段1：AgentDoG粗粒度SFT数据总设计
 
+> 当前状态（2026-10-29）：Step 0至Step 2已通过验收，Step 3已按400/100/100完成finalize。Step 4为pass，已导出全部1,500条Parquet：Train 1,000、Validation 250、Internal Test 250，各split的safe/unsafe均为1:1，待复核为0。35条冲突最终以33条定点修正和2条原输入双模型支持解决；最后6条修正后重新双模型盲判，12次全部为safe。原始响应和上游final保留，不替换parent、不改变gold或split；人工和模型修订来源分别记录。Teacher Prompt保持现有版本，不新增全量自动语义过滤；训练前需按目标tokenizer检查长度。
+
 ## 1. 最终要交给SFT训练器的数据
 
 Train、Validation和Internal Test最终都导出为Parquet，每行采用相同的`messages`格式并保留assistant参考答案。下面是完整字段结构示例；为便于阅读缩短了trajectory，实际user内容由冻结的[judge_eval/prompt.txt](../../../../judge_eval/prompt.txt)和统一renderer完整生成。
@@ -31,33 +33,36 @@ Train、Validation和Internal Test最终都导出为Parquet，每行采用相同
 
 | 数据组件 | Train | Validation | Internal Test |
 |---|---:|---:|---:|
-| Binary无显式工具列表safe | 100 | 12 | 13 |
-| Binary无显式工具列表unsafe | 100 | 13 | 12 |
-| FineGrained带工具unsafe | 400 | 50 | 50 |
-| 生成的带工具safe twin | 400 | 50 | 50 |
-| **合计** | **1,000** | **125** | **125** |
+| Binary无显式工具列表safe | 100 | 25 | 25 |
+| Binary无显式工具列表unsafe | 100 | 25 | 25 |
+| FineGrained带工具unsafe | 400 | 100 | 100 |
+| 生成的带工具safe twin | 400 | 100 | 100 |
+| **合计** | **1,000** | **250** | **250** |
 
-Train严格为500 safe和500 unsafe。Validation为62 safe、63 unsafe；Internal Test为63 safe、62 unsafe。外部R-Judge和ATBench不计入这1,250条。
+三个split内部都保持safe/unsafe严格平衡。FineGrained记录保留RS、FM、RWH三个标签用于抽样、审计和未来候选复用；粗粒度训练只读取`coarse`，本设计不把这600条定义为细粒度阶段的完整训练集。
 
-## 3. 四步数据流水线
+## 3. 五步数据流水线
 
 ```text
-Step 1  BinarySafety清洗与抽样
-        → 200 Train / 25 Validation / 25 Test
+Step 0  统一解析两个来源、跨来源分组、采样和split冻结
+        → 900条parent selection manifest
 
-Step 2  FineGrained带工具unsafe清洗与抽样
-        → 400 Train / 50 Validation / 50 Test
+Step 1  按Step 0清单转换BinarySafety
+        → 200 Train / 50 Validation / 50 Test
+
+Step 2  按Step 0清单转换FineGrained带工具unsafe
+        → 400 Train / 100 Validation / 100 Test
 
 Step 3  对Step 2逐条生成safe twin
-        → 400 Train / 50 Validation / 50 Test
+        → 400 Train / 100 Validation / 100 Test
 
 Step 4  为三个split生成CoT并导出messages
         → train.parquet / validation.parquet / test.parquet
 ```
 
-前三步只生成无CoT的统一canonical row。Step 4读取canonical row，生成最终user prompt和assistant监督答案。
+Step 0是唯一允许采样和分配split的阶段。Step 1和Step 2只按冻结清单物化canonical row，Step 3逐条继承parent，Step 4生成最终user prompt和assistant监督答案。
 
-## 4. 前三步统一输出的canonical格式
+## 4. Step 1至Step 3统一输出的canonical格式
 
 ```json
 {
@@ -104,18 +109,22 @@ Step 4  为三个split生成CoT并导出messages
 }
 ```
 
-统一字段只有9个：`id`、`group_id`、`pair_id`、`split`、`source`、`profile`、`tools`、`trajectory`、`target`。事件采用最小字段：user/environment使用`role + content`，agent使用`role + thought + action`。无法进入训练输入的审计信息放在独立`metadata.jsonl`，不继续扩张canonical row。
+统一字段只有9个：`id`、`group_id`、`pair_id`、`split`、`source`、`profile`、`tools`、`trajectory`、`target`。事件采用最小字段：user/environment使用`role + content`，agent使用`role + thought + action`。无法进入训练输入的逐条审计信息跟随本Step的关键中间文件保存，汇总统计进入`report.json`，不继续扩张canonical row。
 
-safe row的三维标签为`null`；其继承的风险配置只保存在metadata的`risk_context`中，不能伪装成safe样本的细粒度gold label。
+safe row的三维标签为`null`；其继承的风险配置只保存在Step 3 `intermediate/lineage.jsonl`的`risk_context`中，不能伪装成safe样本的细粒度gold label。
 
 ## 5. Split与防泄漏规则
 
-1. 精确去重和近重复grouping完成后再切分；
-2. `group_id`和`pair_id`均不得跨split；
-3. Step 3 safe twin继承Step 2 parent的split；
-4. benchmark只用于近重复排除和最终外部测试；
-5. CoT不能参与去重、grouping或split；
-6. Internal Test在数据、prompt和checkpoint选择规则冻结后只运行一次。
+1. Step 0先用共享parser建立BinarySafety与FineGrained的统一候选索引；
+2. 两个来源必须跨来源去重和grouping，再给每个全局group分配唯一split；
+3. Step 1和Step 2不能重新抽样、重新分组或修改split；
+4. `group_id`和`pair_id`均不得跨split；
+5. Step 3 safe twin继承Step 2 parent的group、pair和split；
+6. benchmark只用于近重复排除和最终外部测试；
+7. CoT不能参与去重、grouping或split；
+8. Internal Test在数据、prompt和checkpoint选择规则冻结后只运行一次。
+
+Step 0必须在模型训练、算法工程、数据工程和数据分析四个视角全部通过后才能写出正式选择清单。详细配额、分布目标和验收规则见[Step 0](00_global_selection.md)。
 
 ## 6. Renderer与CoT契约
 
@@ -129,43 +138,43 @@ safe row的三维标签为`null`；其继承的风险配置只保存在metadata�
 ## 7. 总目录与下一级文档
 
 ```text
-data/agentdog/
+data/
 ├── 1.0/
 │   └── source/AgentDoG1.0-Training-Data/      # 只读公开原料
 └── 1.5/
-    ├── coarse-grained/
-    │   └── sft/
-    │       ├── source/                        # source manifest，不复制原料
-    │       ├── intermediate/
-    │       │   ├── binary/
-    │       │   ├── tool-unsafe/
-    │       │   ├── tool-safe/
-    │       │   └── cot/
-    │       ├── canonical/components/
-    │       ├── metadata/
-    │       ├── reports/
-    │       ├── final/
-    │       │   ├── train.parquet
-    │       │   ├── validation.parquet
-    │       │   └── test.parquet
-    │       └── manifest.json
-    ├── fine-grained/
-    │   ├── sft/                               # 待规划
-    │   └── gdpo/                              # 待规划
-    └── main-agent/
-        ├── sft/                               # 待规划
-        └── rl/                                # 待规划
+    └── coarse_sft/
+        ├── step0/                         # 全局候选、分组、采样和切分
+        │   ├── intermediate/
+        │   ├── final/
+        │   └── report.json
+        ├── step1/                         # 按清单转换Binary数据
+        │   ├── final/
+        │   └── report.json
+        ├── step2/                         # 按清单转换带工具unsafe
+        │   ├── final/
+        │   └── report.json
+        ├── step3/                         # 带工具safe twin生成
+        │   ├── intermediate/
+        │   ├── final/
+        │   └── report.json
+        └── step4/                         # CoT生成和SFT导出
+            ├── intermediate/
+            ├── final/
+            └── report.json
 ```
 
 对应构建脚本统一放在：
 
 ```text
-data_pipeline/agentdog/1.5/coarse-grained/sft/
+data_pipeline/coarse_sft/
 ```
 
-1. [Step 1：BinarySafety清洗与抽样](01_binary_no_tool.md)
-2. [Step 2：带工具unsafe清洗与抽样](02_tool_unsafe.md)
-3. [Step 3：带工具safe twin生成](03_tool_safe.md)
-4. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
+1. [Step 0：全局候选池、采样与切分](00_global_selection.md)
+2. [Step 1：按清单转换BinarySafety](01_binary_no_tool.md)
+3. [Step 2：按清单转换带工具unsafe](02_tool_unsafe.md)
+4. [Step 3：带工具safe twin生成](03_tool_safe.md)
+5. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
+6. [Step 3 Safe Twin生成Prompt](prompts/safe_twin_generator.txt)
+7. [Step 3 Safe Twin检查Prompt](prompts/safe_twin_checker.txt)
 
 论文依据统一见[证据索引](../../evidence.md)。

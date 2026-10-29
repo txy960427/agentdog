@@ -1,0 +1,100 @@
+{
+  "stage": "coarse_sft/step2",
+  "version": "1.0.0",
+  "created_at": "2026-10-29T01:04:01+00:00",
+  "inputs": {
+    "fine": {
+      "path": "D:\\agentdog\\data\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-FineGrainedTaxonomy\\train.json",
+      "sha256": "0ee0356677c3ffe5f5c83db62191efc7c07a6a8ac1d20e88a326c53faeb8ff6c"
+    },
+    "selection": {
+      "path": "D:\\agentdog\\data\\1.5\\coarse_sft\\step0\\final\\selection.jsonl",
+      "sha256": "84c7a4ff7d1df3520e18ce79d38eda3ffdad07b40f0af2ed1e001f48e6abfd2b"
+    },
+    "step0_report": {
+      "path": "D:\\agentdog\\data\\1.5\\coarse_sft\\step0\\report.json",
+      "sha256": "90681989b79ed43b74b3e0382b3eb9bc18a6ed9dcc8f3da4c45aa5024dc40aaf"
+    }
+  },
+  "selection_records": 600,
+  "by_split": {
+    "train": {
+      "records": 400,
+      "risk_sources": {
+        "Corrupted Tool Feedback": 50,
+        "Direct Prompt Injection": 50,
+        "Indirect Prompt Injection": 50,
+        "Inherent Agent/LLM Failures": 50,
+        "Malicious Tool Execution": 50,
+        "Malicious User Instruction or Jailbreak": 50,
+        "Tool Description Injection": 50,
+        "Unreliable or Mis-information": 50
+      },
+      "failure_modes": 14,
+      "real_world_harms": 10
+    },
+    "validation": {
+      "records": 100,
+      "risk_sources": {
+        "Corrupted Tool Feedback": 13,
+        "Direct Prompt Injection": 12,
+        "Indirect Prompt Injection": 13,
+        "Inherent Agent/LLM Failures": 12,
+        "Malicious Tool Execution": 13,
+        "Malicious User Instruction or Jailbreak": 12,
+        "Tool Description Injection": 13,
+        "Unreliable or Mis-information": 12
+      },
+      "failure_modes": 14,
+      "real_world_harms": 10
+    },
+    "test": {
+      "records": 100,
+      "risk_sources": {
+        "Corrupted Tool Feedback": 12,
+        "Direct Prompt Injection": 13,
+        "Indirect Prompt Injection": 12,
+        "Inherent Agent/LLM Failures": 13,
+        "Malicious Tool Execution": 12,
+        "Malicious User Instruction or Jailbreak": 13,
+        "Tool Description Injection": 12,
+        "Unreliable or Mis-information": 13
+      },
+      "failure_modes": 14,
+      "real_world_harms": 10
+    }
+  },
+  "tool_audit": {
+    "tools": 2629,
+    "source_fields_removed": 2629,
+    "original_descriptions_removed": 77,
+    "schema_warning_records": 54,
+    "duplicate_tool_name_records": 14
+  },
+  "audit": {
+    "status": "pass",
+    "raw_hash_mismatches": 0,
+    "quarantine": 0,
+    "unique_ids": 600,
+    "unique_pair_ids": 600,
+    "tool_metadata_removed": true,
+    "cot_is_null": true
+  },
+  "outputs": {
+    "train": {
+      "path": "final/train.jsonl",
+      "records": 400,
+      "sha256": "93924ab93f06efa6ec2529a66565b01a9076168cada8979118d158270b756e7d"
+    },
+    "validation": {
+      "path": "final/validation.jsonl",
+      "records": 100,
+      "sha256": "e3bb7f36a9021cc0db4c20997667076d2c88042a56699e2b7e9390e92fd5c886"
+    },
+    "test": {
+      "path": "final/test.jsonl",
+      "records": 100,
+      "sha256": "4679e9e3bcbe9fcfbe83127c4e75f1119fdc0d84250da2ef5af6df15e4f5f107"
+    }
+  }
+}
