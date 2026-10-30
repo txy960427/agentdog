@@ -1,0 +1,58 @@
+{
+  "stage": "coarse_sft/step5/cot",
+  "created_at": "2026-10-30T15:07:20+00:00",
+  "status": "pass",
+  "total": 100,
+  "selected_split": "all",
+  "selection": "step5",
+  "counts": {
+    "generated": 100
+  },
+  "distribution": {
+    "train": {
+      "safe": 100
+    },
+    "validation": {},
+    "test": {}
+  },
+  "source_hashes": {
+    "step0_report": "90681989b79ed43b74b3e0382b3eb9bc18a6ed9dcc8f3da4c45aa5024dc40aaf",
+    "candidates": "5ec3fb201781783695b329b3f5a1dbfba941c4699b9a9d8b8a2834155a0e0de5",
+    "selection": "84c7a4ff7d1df3520e18ce79d38eda3ffdad07b40f0af2ed1e001f48e6abfd2b",
+    "binary": "9a86a7cfae59c916431ed675225eb34099b8a089b985d6de38aec19a10616c6d",
+    "fine": "0ee0356677c3ffe5f5c83db62191efc7c07a6a8ac1d20e88a326c53faeb8ff6c",
+    "step5_manifest": "db4cd789d4ba208f4311e4685f59f94d53ae8d716b23e43e4e087dff870e03bc"
+  },
+  "requested_model": "gpt-6.1-sol",
+  "base_url": "https://new.mrxiwang.eu.cc/v1",
+  "max_tokens": 8192,
+  "teacher_prompt_sha256": "c06e89e2ace7bbc7bdcb23b68170918505a58ef5a0f9230a6768c119ad133378",
+  "student_prompt_sha256": "605602c01689db4aed35ce60997882001875011615b6a49d8718847ad9a027e1",
+  "workers": 4,
+  "request_interval_seconds": 8.0,
+  "legacy_seed_records": 0,
+  "renderer_sha256": "cce5fae190a427eaa481f8660ed59bacd9c5669f12798b8fc9978c7d02d739b5",
+  "input_adapter_sha256": "187c187189a2a93139743a699ffa4f1a2af13543dd659ef2a95763ab1c96adde",
+  "usage": {
+    "prompt_tokens": 168509,
+    "completion_tokens": 38617,
+    "total_tokens": 207126
+  },
+  "outputs": {
+    "inputs": {
+      "path": "intermediate/inputs.jsonl",
+      "records": 100,
+      "sha256": "64fe4363991e552268afa8243fe34e3d2939ee2d668ca6c210c4b4e3e1c5ab5e"
+    },
+    "checkpoint": {
+      "path": "intermediate/teacher_outputs.jsonl",
+      "sha256": "77fe8fd6d0cee8361409f591da3f1fdfc208e54c41b54b1e36b06a583daf1fc9"
+    },
+    "final": {
+      "path": "final/candidates.jsonl",
+      "records": 100,
+      "sha256": "62aa417aff3e3cb90e4a878278bf07de982b72dea4c41d4bad51e282beaafe08"
+    }
+  },
+  "checks": "仅格式和gold一致性通过；未做独立语义审核或影响函数筛选；训练只能读取train split"
+}

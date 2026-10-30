@@ -186,7 +186,7 @@ def retry_delay(error: str, attempt: int) -> float:
 
 
 def generate_pending(pending: list[dict], client, workers: int, interval: float,
-                     checkpoint: Path, cache: dict, attempts: list[dict], metadata: dict) -> None:
+                     checkpoint: Path, cache: dict, attempts: list[dict], metadata: dict, *, label: str = "Step 4", parse_result=None) -> None:
     """有界并发请求；所有worker共用启动间隔，仅主线程逐条写检查点。"""
     if not pending:
         return
@@ -225,11 +225,14 @@ def generate_pending(pending: list[dict], client, workers: int, interval: float,
             result.update(response)
             if response["finish_reason"] != "stop":
                 raise PipelineError(f"生成未正常结束：{response['finish_reason']}")
-            cot, judgment = parse_output(response["content"])
-            result.update(cot=cot, judgment=judgment,
-                          status="generated" if judgment == item["gold"] else "review_required")
-            if result["status"] == "review_required":
-                result["error"] = "Teacher判断与gold冲突；保留原文，请人工复核"
+            if parse_result is not None:
+                result.update(parse_result(response["content"], item))
+            else:
+                cot, judgment = parse_output(response["content"])
+                result.update(cot=cot, judgment=judgment,
+                              status="generated" if judgment == item["gold"] else "review_required")
+                if result["status"] == "review_required":
+                    result["error"] = "Teacher判断与gold冲突；保留原文，请人工复核"
         except ValueError as exc:
             result.update(status="failed", error=str(exc))
         except PipelineError as exc:
@@ -264,7 +267,7 @@ def generate_pending(pending: list[dict], client, workers: int, interval: float,
             todo.appendleft((item, attempt + 1))
             return
         finished += 1
-        print(f"Step 4: {finished}/{len(pending)} {item['id']} {result['status']}", flush=True)
+        print(f"{label}: {finished}/{len(pending)} {item['id']} {result.get('decision', result['status'])}", flush=True)
         if api_error and allow_retry:
             stopping.set()
             print(f"停止派发新请求：{error}；正在进行的请求完成后仍会保存。", flush=True)
@@ -352,7 +355,7 @@ def run(*, dry_run: bool = False, limit: int | None = None) -> None:
                   "usage": {key: sum(int(row.get("usage", {}).get(key, 0) or 0) for row in attempts) for key in ("prompt_tokens", "completion_tokens", "total_tokens")},
                   "outputs": {"checkpoint": {"path": "intermediate/teacher_outputs.jsonl", "sha256": sha256_file(checkpoint) if checkpoint.exists() else None}}}
         # 普通续跑/导出不能丢失此前人工修正、盲判的来源和额外API用量。
-        for name, filename in (("manual_conflict_review", "manual_conflict_review.json"), ("independent_review", "review_report.json")):
+        for name, filename in (("manual_conflict_review", "manual_conflict_review.json"), ("independent_review", "review_report.json"), ("manual_cot_review", "check/manual_review.json")):
             audit_path = OUTPUT_ROOT / filename
             if audit_path.exists():
                 report["outputs"][name] = {"path": filename, "sha256": sha256_file(audit_path)}

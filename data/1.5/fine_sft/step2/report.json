@@ -1,0 +1,50 @@
+{
+  "stage": "fine_sft/step2",
+  "version": "2.0.0",
+  "created_at": "2026-10-30T04:56:10+00:00",
+  "status": "review_required",
+  "counts": {
+    "generated": 505,
+    "review_required": 46,
+    "failed": 1,
+    "pending": 3448
+  },
+  "model": "gpt-6.1-sol",
+  "base_url": "https://new.mrxiwang.eu.cc/v1",
+  "workers": 4,
+  "request_interval_seconds": 8.0,
+  "max_tokens": 8192,
+  "inputs": {
+    "train": {
+      "records": 2701,
+      "sha256": "c27b3ef2902b3608de3903116d473c073657edd68dc515ab4a75618a0ab1e3d3"
+    },
+    "validation": {
+      "records": 678,
+      "sha256": "8eac8d8c75af86005671f21acf694692e72cc10b5befbf93d55adc43d6b77d2c"
+    },
+    "test": {
+      "records": 621,
+      "sha256": "e6252adaf4f527a0f3f4aafd9807045fef952fa57e6dff43b698e2c48a65ade6"
+    }
+  },
+  "teacher_prompt_sha256": "a617f6d7a015b177d65fc960eac3388724426bc93f350f024f59c8fca955ca86",
+  "student_prompt_sha256": "ac9156b0837e465b583646b006f4e3737c184a14ba9fc56007b850f32bc7fc65",
+  "renderer_sha256": "cce5fae190a427eaa481f8660ed59bacd9c5669f12798b8fc9978c7d02d739b5",
+  "checks": "format, three-label space, gold consistency, leakage words; semantic audit is separate",
+  "usage": {
+    "prompt_tokens": 2415969,
+    "completion_tokens": 244785,
+    "total_tokens": 2660754
+  },
+  "outputs": {
+    "checkpoint": {
+      "records": 583,
+      "sha256": "7d2d8e57532325f6e5a212ba93f72221d32094ea208f1ccc72fb7e69a8398a7d"
+    },
+    "reviews": {
+      "records": 46,
+      "sha256": "cc75901739c7977b577a798d5f4274f3e325db845dee7de536ce1d53adc9f2d0"
+    }
+  }
+}

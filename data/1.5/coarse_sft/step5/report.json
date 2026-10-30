@@ -1,0 +1,121 @@
+{
+  "stage": "coarse_sft/step5_length_debias",
+  "created_at": "2026-10-30T15:37:23+00:00",
+  "status": "pass",
+  "purpose": "仅替换Train中的100条Binary safe，隔离验证safe轨迹长度捷径；Validation/Test保持不变",
+  "selection": {
+    "count": 100,
+    "rules": [
+      "只使用Step 0中未进入基线的train/BinarySafety/gold-safe样本",
+      "事件数至少5，按事件数降序、轨迹字符数降序、ID升序",
+      "ID、group和整轨内容唯一，最后一条必须是完整Complete回答",
+      "排除Teacher已判为review_required的标签冲突样本"
+    ],
+    "event_counts": {
+      "5": 50,
+      "6": 7,
+      "7": 26,
+      "8": 11,
+      "9": 1,
+      "10": 4,
+      "11": 1
+    },
+    "cot": {
+      "ready": 100,
+      "pending": 0
+    }
+  },
+  "base_train": {
+    "records": 1000,
+    "labels": {
+      "safe": 500,
+      "unsafe": 500
+    },
+    "safe_event_bins": {
+      "1-4": 346,
+      "5-8": 141,
+      "9-12": 13,
+      "13+": 0
+    }
+  },
+  "variant_train": {
+    "records": 1000,
+    "labels": {
+      "unsafe": 500,
+      "safe": 500
+    },
+    "safe_event_bins": {
+      "1-4": 274,
+      "5-8": 208,
+      "9-12": 18,
+      "13+": 0
+    }
+  },
+  "frozen_evaluation": {
+    "validation": "data/1.5/coarse_sft/step4/final/validation.parquet",
+    "test": "data/1.5/coarse_sft/step4/final/test.parquet"
+  },
+  "source_hashes": {
+    "data/1.5/coarse_sft/step5/final/replacement_manifest.jsonl": "97ad73a4e056b8a4a0c0a73a2b3e9cdefed7563398c78c5191a4491ddf1e205c",
+    "data/1.5/coarse_sft/step5/cot/intermediate/inputs.jsonl": "64fe4363991e552268afa8243fe34e3d2939ee2d668ca6c210c4b4e3e1c5ab5e",
+    "data/1.5/coarse_sft/step5/cot/final/candidates.jsonl": "62aa417aff3e3cb90e4a878278bf07de982b72dea4c41d4bad51e282beaafe08",
+    "data/1.5/coarse_sft/step5/cot/intermediate/teacher_outputs.jsonl": "77fe8fd6d0cee8361409f591da3f1fdfc208e54c41b54b1e36b06a583daf1fc9",
+    "data/1.5/coarse_sft/step1/final/train.jsonl": "79e6eea366e97ca734509e078c0799155f36f242ceb52077e423118ea2406f7e",
+    "data/1.5/coarse_sft/step2/final/train.jsonl": "93924ab93f06efa6ec2529a66565b01a9076168cada8979118d158270b756e7d",
+    "data/1.5/coarse_sft/step3/final/train.jsonl": "883c9065f0c1cd7290ac5e14eebb6d253c9c2d470926fb4aab8781beda28d31b"
+  },
+  "output": {
+    "path": "final/replacement_manifest.jsonl",
+    "records": 200,
+    "sha256": "97ad73a4e056b8a4a0c0a73a2b3e9cdefed7563398c78c5191a4491ddf1e205c"
+  },
+  "next": "使用step5/final训练；Validation/Test与Step 4基线逐字节相同",
+  "export": {
+    "status": "pass",
+    "policy": "Train替换100条；Validation/Test逐字节复用Step 4基线",
+    "removed": 100,
+    "added": 100,
+    "labels": {
+      "unsafe": 500,
+      "safe": 500
+    },
+    "outputs": {
+      "train": {
+        "path": "final/train.parquet",
+        "records": 1000,
+        "sha256": "1b031d549fd4bd78839c5ff3a72864f61946fd69d9d0bfc68ef95cc2643cdb5d"
+      },
+      "validation": {
+        "path": "final/validation.parquet",
+        "records": 250,
+        "sha256": "9c729b250c95efa20dff7ebc9668c5f791799abda978dfaa4637e8e3f7d63f45"
+      },
+      "test": {
+        "path": "final/test.parquet",
+        "records": 250,
+        "sha256": "8f0c3b87c32f6c98ce50c1f507ac1d985b8955399f38ffd001ad70bcc89f2a31"
+      }
+    },
+    "dataset_info_sha256": "3420d570eb5f84492eb4257682d93300f489a535cd0698ea2a48771852af7aaa",
+    "cot_check_report_sha256": "66fb6db0066938f107a5ac4004c78a53947525eda1aadfa7d37ac76e92a5bd34"
+  },
+  "outputs": {
+    "final": {
+      "train": {
+        "path": "final/train.parquet",
+        "records": 1000,
+        "sha256": "1b031d549fd4bd78839c5ff3a72864f61946fd69d9d0bfc68ef95cc2643cdb5d"
+      },
+      "validation": {
+        "path": "final/validation.parquet",
+        "records": 250,
+        "sha256": "9c729b250c95efa20dff7ebc9668c5f791799abda978dfaa4637e8e3f7d63f45"
+      },
+      "test": {
+        "path": "final/test.parquet",
+        "records": 250,
+        "sha256": "8f0c3b87c32f6c98ce50c1f507ac1d985b8955399f38ffd001ad70bcc89f2a31"
+      }
+    }
+  }
+}

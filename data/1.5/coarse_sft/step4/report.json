@@ -1,18 +1,18 @@
 {
   "stage": "coarse_sft/step4",
-  "created_at": "2026-10-29T06:36:39+00:00",
+  "created_at": "2026-10-30T15:30:16+00:00",
   "status": "pass",
   "counts": {
     "generated": 1500
   },
   "teacher_prompt_sha256": "c06e89e2ace7bbc7bdcb23b68170918505a58ef5a0f9230a6768c119ad133378",
   "student_prompt_sha256": "605602c01689db4aed35ce60997882001875011615b6a49d8718847ad9a027e1",
-  "renderer_sha256": "cce5fae190a427eaa481f8660ed59bacd9c5669f12798b8fc9978c7d02d739b5",
+  "renderer_sha256": "6314d3d89ace915b3be39b3087a6de22a91bc5c289abe2542a89552d156c51cd",
   "model": "gpt-6.1-sol",
   "base_url": "https://new.mrxiwang.eu.cc/v1",
   "workers": 4,
   "request_interval_seconds": 8.0,
-  "input_adapter_sha256": "187c187189a2a93139743a699ffa4f1a2af13543dd659ef2a95763ab1c96adde",
+  "input_adapter_sha256": "4a575ed0fa7a8ff6581a63e1fcdec21dd25aa083797dd001b6225c397736cc1b",
   "input_corrections_sha256": "2f5beca5105591f519885bd30a4c58c93e86ec54c3dbcb26caab4c294191238f",
   "conflict_repairs_sha256": "f24a3c4e417bcfb0cd7e5a9b2708d6a973c5b9e26ab19a6a82299661100783f8",
   "training_token_cutoff_checked": false,
@@ -25,7 +25,7 @@
   "outputs": {
     "checkpoint": {
       "path": "intermediate/teacher_outputs.jsonl",
-      "sha256": "0dac0bf17fe0260f9a0eb7cbac2b1bf730d6387deb9c61dd3d391400aa397ec7"
+      "sha256": "6cb3278c17a80a6238379426c0b11c1ae18fb3f75d282cd29fe9d78567eb75bf"
     },
     "manual_conflict_review": {
       "path": "manual_conflict_review.json",
@@ -35,16 +35,20 @@
       "path": "review_report.json",
       "sha256": "5d449660564432c928cb28c8265b5bffdce3311dfbbb290cdae2e0f409cf1fa9"
     },
+    "manual_cot_review": {
+      "path": "check/manual_review.json",
+      "sha256": "31889124a41552f91156a903f51657cb7925599febc366120895d3cb519315e6"
+    },
     "final": {
       "train": {
         "path": "final/train.parquet",
         "records": 1000,
-        "sha256": "ce867efefcd6a1e6f4cee7f460c6f50cd93e21a34060220511e28ec66570e849"
+        "sha256": "62d4f152e829912569b18b16666cb2ce17639b5483a5da152ba6e318ea7e037e"
       },
       "validation": {
         "path": "final/validation.parquet",
         "records": 250,
-        "sha256": "31a35cbfec12f21a7165176e409a900b0cf8ace9bb95b4e1ad47709ed9504081"
+        "sha256": "9c729b250c95efa20dff7ebc9668c5f791799abda978dfaa4637e8e3f7d63f45"
       },
       "test": {
         "path": "final/test.parquet",

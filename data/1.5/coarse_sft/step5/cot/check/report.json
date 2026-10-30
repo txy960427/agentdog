@@ -1,0 +1,29 @@
+{
+  "stage": "coarse_sft/step5/cot/check",
+  "target": "step5",
+  "created_at": "2026-10-30T15:20:48+00:00",
+  "total": 100,
+  "counts": {
+    "pass": 100
+  },
+  "reviewer": "gpt-6-astra",
+  "base_url": "https://new.mrxiwang.eu.cc/v1",
+  "checker_prompt_sha256": "844dd3f1a72289ad74385875d82a0a6685a6909acef0abfc3535da4a5928cba5",
+  "flagged": [],
+  "usage": {
+    "prompt_tokens": 261289,
+    "completion_tokens": 19264,
+    "total_tokens": 280553
+  },
+  "source_files": {
+    "step5": "62aa417aff3e3cb90e4a878278bf07de982b72dea4c41d4bad51e282beaafe08"
+  },
+  "local_review": {
+    "accepted": 0,
+    "unresolved": 0,
+    "decisions": [],
+    "manual_review_sha256": null
+  },
+  "report_only": false,
+  "scope": "counts仅统计当前内容对应的外部模型意见；local_review为本助手逐条裁决，分别保存。此汇总不修改训练数据。"
+}

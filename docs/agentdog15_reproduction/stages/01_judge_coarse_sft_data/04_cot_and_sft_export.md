@@ -227,6 +227,22 @@ cot, judgment = parse_output(response["content"])
 
 当前自动代码执行格式和标签一致性检查；第2–5项需要后续独立审核。检查点的`generated`不等于语义已通过。标签冲突记录为`review_required`，同一输入再次运行不会自动反复生成；普通格式错误或暂时性API错误最多共尝试3次。429统一冷却65秒，502/503默认冷却30秒，服务端提供更长`retry_after`时遵守其等待要求；401等非暂时性错误、重试耗尽或截断则停止新派发并保存其余在途结果。
 
+新增`pipeline.py step4 --check`用于第2–5项的模型内容首审，详见[独立审核Prompt](prompts/coarse_cot_checker.txt)。它直接读取最终Parquet的Student输入和Analysis，不发送gold或原Judgment；返回轨迹判断、Analysis隐含标签、CoT质量结论和原文证据，由程序本地比较隐藏标签。Prompt要求区分请求、计划、调用、观察结果，避免将风险暴露加安全拒绝误判为矛盾。原文引用必须能在实际输入/Analysis中精确找到，否则算审核响应错误，不算样本不合格。
+
+默认审核模型`gpt-6-astra`，每条一次首审，只有格式/API错误按既有机制重试。结果单独保存到对应Target的`check/records.jsonl`和`report.json`，记录pass/review/fail；API或响应错误记failed。轨迹判断反对gold优先待审，不能改写CoT来迎合原标签。该入口不自动修改、过滤或重导出训练数据，也不重置原生成检查点。模型读到了旧CoT，所以不能把首审称为完全独立盲判；最终状态以`check/report.json`为准，原生成`report.json=pass`不代表已完成内容审核。命令见[管线说明](../../../../data_pipeline/README.md#粗粒度cot语义审核)。
+
+### 4.4 审定CoT的定点修订
+
+2026-10-30完成全量首审后，仅修订两处已能从输入确认的问题：`binary_safe_44370c78d3967b49`的Apple来源归属、`tool_unsafe_48d010a4b6a89404`的注入执行归因。补丁在`steps/step4/check_repairs.json`，包含源assistant hash、唯一替换片段、理由及9条疑点的逐条决定；`pipeline.py step4 --repair-cot`应用补丁，不调用API，不改变输入、gold或split。重复运行不重复追加修订。
+
+原生成记录保留，新记录以`manual_cot_revision_after_check`标识本助手离线修订并清空新增API用量和响应ID。仅重写Train Parquet，并同步主报告hash；Validation/Test文件保持原字节。原审核报告另存`check/report_before_cot_repair.json`，逐条处置写入`check/manual_review.json`，未来普通重导出也保留该血缘。
+
+首批2条修订仅追加2次模型审核，两条均pass。专用身份核验案例由本地复核判为审核口径误报，保留safe和原CoT。
+
+随后按论文§3.1及附录A.2/A.3裁决另外6条，均保留unsafe，并重写CoT以准确描述不可靠执行、错误状态关联和误导性结论。依据见[证据E13](../../evidence.md#e13)；该口径包含功能/机会损失，不要求已发生外泄或发信，也不把所有轻微错误一概视为unsafe。累计修订Train 6条、Validation 2条的assistant内容，输入、gold、split及Test文件不变。
+
+新增6条只做本助手离线裁决，未调用API。`--check --report-only`只刷新汇总：`counts`保留当前内容的模型意见（1493 pass、1 review、6 pending），`local_review`分别列出7条本地接受和综合未决0；不伪造外部模型pass。手工裁决带当前Student、assistant、gold和split校验，后续样本变更会使其失效。原始模型意见和原CoT继续保留。
+
 2026-10-29接口实测确认至少支持8个同时在途的短请求，返回每分钟10次请求限额；6.5秒间隔的连续调用仍在第11次触发429。因此默认采用4个worker和全局8秒请求启动间隔，并保留429统一冷却重试。调度始终最多保留4个任务，结果返回后由主线程逐条写checkpoint并补充任务；中断时停止派发并收取已发出的结果。并发和请求间隔不参与样本key计算，因此不需要重做已有CoT。短请求测试不代表已测出并发或持续吞吐上限，不用于训练，也不改CoT质量判据。
 
 格式错误最多重试两次，重试也不提供gold。标签冲突或证据虚构进入人工审核，可在保留可见证据和gold不变的前提下人工修正CoT并记录diff。Step 4不得丢弃记录或从同分层补样；若人工确认canonical gold本身错误，必须退回对应上游阶段修订并重新执行后续验收。
@@ -316,3 +332,11 @@ data/1.5/coarse_sft/
 | Parquet导出与统一入口 | 已实现 | 全部生成后导出1,000/250/250，入口`pipeline.py step4` |
 
 代码集中在`steps/step4/pipeline.py`，调用命令见[data_pipeline README](../../../../data_pipeline/README.md)。`--dry-run`可预览当前1,500条输入而不调用API；正式生成必须来自Step 1/2/3已验收的final，不能使用未通过审核的Step 3 draft。
+
+## 8. 未采样原始轨迹的补充CoT候选池
+
+扩展入口`pipeline.py cot_pool`复用本节Teacher/Student、输入适配和解析规则；从Step 0已去重、分组、切分的候选索引中排除已选900条parent，转换剩余5100条原始轨迹。输出独立保存到`data/1.5/coarse_sft/cot_pool/`，不增加safe twin，不重划split或更改原1500条。
+
+保留canonical输入、原始响应、通过格式与标签检查的SFT候选JSONL和汇总报告。Train/Validation/Test分别为3421/877/802；以后只能从Train中选训练样本。当前未进行独立语义审核、平衡或影响函数筛选，不能把它视为新的正式训练集。
+
+与原Step 4不同，补充池的检查点key不包含模型/接口：输入和gold不变时允许混合模型续跑，已完成结果保留，实际模型来源逐条记录；标签冲突不自动重复调用。运行命令和四个核心文件见[data_pipeline README](../../../../data_pipeline/README.md#补充未采样原始数据的cot)。

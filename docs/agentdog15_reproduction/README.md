@@ -27,14 +27,14 @@ AgentDoG Judge
                  AgentDoG提供安全奖励
 ```
 
-粗粒度AgentDoG主要用于轨迹级`safe/unsafe`判断。细粒度AgentDoG负责RS、FM、RWH诊断，并在主执行模型的在线RL阶段提供更细的安全信号。
+粗粒度AgentDoG主要用于轨迹级`safe/unsafe`判断，也是当前公开主执行模型RL代码中安全奖励`S`的来源。细粒度AgentDoG负责RS、FM、RWH诊断；它通过细粒度SFT学习输出格式和诊断知识，再由GDPO直接优化三维标签准确率。论文的主执行模型RL只解析`safe/unsafe`，没有消费RS/FM/RWH，因此细粒度模型是独立的诊断Judge产物，不是主执行模型训练的必要前置。
 
 ## 3. 复现阶段
 
 | 阶段 | 训练输入 | 阶段产物 | 当前规划状态 |
 |---|---|---|---|
 | 1. AgentDoG粗粒度SFT | 粗粒度轨迹、CoT、safe/unsafe | AgentDoG粗粒度模型 | Step 4已通过并导出1,500条Parquet（1,000/250/250）；当前为未做影响函数净化的SFT基线，训练尚未开始 |
-| 2. AgentDoG细粒度SFT | 细粒度轨迹、CoT、RS/FM/RWH | 细粒度SFT初始化模型 | 待规划 |
+| 2. AgentDoG细粒度SFT | 细粒度unsafe轨迹、CoT、RS/FM/RWH | 细粒度SFT初始化模型 | Step 0/1已按全量4,000条通过；Step 2已有6条pilot，其余待续跑 |
 | 3. AgentDoG细粒度GDPO | 细粒度query与可验证三维奖励 | AgentDoG细粒度模型 | 待规划 |
 | 4. 主执行Agent SFT | AgentDoG筛选后的安全轨迹与良性工具轨迹 | 主执行Agent SFT模型 | 待规划 |
 | 5. 主执行Agent RL | 环境任务、工具、rollout与安全/utility奖励 | 主执行Agent RL模型 | 待规划 |
@@ -50,10 +50,11 @@ data/
 ├── 1.0/
 │   └── source/AgentDoG1.0-Training-Data/      # 只读公开原料
 └── 1.5/
-    └── coarse_sft/                         # 当前阶段
+    ├── coarse_sft/                            # 阶段1，已完成数据构建
+    └── fine_sft/                              # 阶段2，Step 0/1已全量完成
 ```
 
-后续阶段确定后，使用`fine_sft`、`fine_gdpo`、`main_sft`、`main_rl`等任务名，不提前创建空目录。
+代码同样隔离为`data_pipeline/coarse_sft/`和`data_pipeline/fine_sft/`。`fine_gdpo`、`main_sft`、`main_rl`仍待设计，不提前创建空目录。
 
 目录约定同时记录在[data/README.md](../../data/README.md)。
 
@@ -141,7 +142,64 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 ### 4.2 AgentDoG细粒度SFT阶段数据设计
 
-> 状态：待规划。
+#### 4.2.1 阶段目标与边界
+
+数据集名称：`AgentDoG1.5-Fine-SFT-Reproduction`。
+
+本阶段与`coarse_sft`完全隔离，使用v1.0 `AgentDoG-FineGrainedTaxonomy`全部4,000条唯一unsafe轨迹重新分组和切分；不读取`coarse_sft/step0/final/selection.jsonl`，也不复用粗粒度Step 4生成的四问CoT。两个阶段可以使用相同公开原料，因为训练的是不同模型，但各自的split、manifest、CoT和最终Parquet互不依赖。
+
+专用细粒度模型只诊断unsafe轨迹。safe样本没有RS/FM/RWH gold，不进入本阶段；safe与三标签联合学习属于Unified模型，不属于本设计。
+
+#### 4.2.2 数据规模
+
+| Split | 条数 | 用途 |
+|---|---:|---|
+| Train | 2,701 | 细粒度SFT参数训练，后续派生GDPO query |
+| Validation | 678 | 选择epoch和checkpoint |
+| Internal Test | 621 | 冻结规则后的同分布生成测试 |
+| **合计** | **4,000** | 全部为unsafe且具有RS/FM/RWH，并全部补充CoT |
+
+论文只披露影响函数净化后roughly 1k训练样本，没有公开细粒度SFT的精确条数和split。为避免不可复现的抽样选择，本版本明确改为全量4,000条基线；它不是论文影响函数净化后1k数据的严格复现，后续可只从Train内部另建筛选实验。
+
+第一版面向论文Table 3和官方Fine模型卡，固定使用ATBench基础标签空间：8个RS、14个FM、10个RWH。论文1.5整体的15/21/11包含Claw/Codex扩展类别，后续如复现完整ATBench Family再建立扩展数据版本，不能把新增类别静默混入本数据集。
+
+#### 4.2.3 三步数据流水线
+
+1. Step 0重新解析全部4,000条FineGrainedTaxonomy，建立细粒度专用group，按8:2:2确定性冻结为2,701/678/621，不做标签重采样；
+2. Step 1按清单物化全部4,000条canonical row，提取Profile、可见工具JSON、原始轨迹和RS/FM/RWH，不再抽样或修改split；
+3. Step 2用论文Oracle Fine-Grained CoT思路为全部4,000条生成`<Analysis>`，最终三行固定为`Failure Mode → Risk Consequence → Risk Source`，审核后导出Parquet。
+
+下一级设计文档：
+
+1. [阶段2总设计](stages/02_judge_fine_sft_data/README.md)
+2. [Step 0：全量清洗与切分](stages/02_judge_fine_sft_data/00_global_selection.md)
+3. [Step 1：细粒度canonical转换](stages/02_judge_fine_sft_data/01_canonical_conversion.md)
+4. [Step 2：Fine CoT、审核与SFT导出](stages/02_judge_fine_sft_data/02_cot_and_sft_export.md)
+5. [Fine CoT Teacher Prompt](stages/02_judge_fine_sft_data/prompts/fine_cot_teacher.txt)
+
+#### 4.2.4 最终数据格式
+
+```json
+{
+  "id": "fine_unsafe_000123",
+  "split": "train",
+  "messages": [
+    {"role": "user", "content": "[已验证的Fine-Grained Judgment Prompt + tools + trajectory]"},
+    {
+      "role": "assistant",
+      "content": "<Analysis>\nWhat happened: ...\nFailure Mode: ...\nRisk Consequence: ...\nRisk Source: ...\n</Analysis>\n\nFailure Mode: Tool Misuse in Specific Context\nRisk Consequence: Functional & Opportunity Harm\nRisk Source: Indirect Prompt Injection"
+    }
+  ],
+  "gold": {
+    "risk_source": "Indirect Prompt Injection",
+    "failure_mode": "Tool Misuse in Specific Context",
+    "risk_consequence": "Functional & Opportunity Harm"
+  },
+  "enable_thinking": false
+}
+```
+
+Student输入使用训练专用`fine_sft_student.txt`与`build_prompt_fields(..., task="fine")`。该模板与benchmark版本只有最后三行顺序不同，训练统一为`FM → Risk Consequence → RS`。Train、Validation和Internal Test均保留assistant参考答案；测试推理只发送user消息。
 
 ### 4.3 AgentDoG细粒度GDPO阶段数据设计
 
@@ -161,9 +219,11 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 已提供LLaMA-Factory 0.8B全参SFT基线、完整长度预检与小样本试训入口，见[训练说明](../../train/coarse_sft/README.md)。GPU训练尚未开始。
 
+补充候选入口`data_pipeline/coarse_sft/pipeline.py cot_pool`可为未采样的5100条v1.0轨迹预生成粗粒度CoT，供后续审核及影响函数候选筛选。它继承原split并作为Git忽略的本地缓存独立保存，不改变当前1000/250/250基线；后续训练只能使用其中的Train候选。调用方式见[管线说明](../../data_pipeline/README.md#补充未采样原始数据的cot)。
+
 ### 5.2 AgentDoG细粒度SFT训练方案
 
-> 状态：待规划。
+> 状态：Step 0/1已按全量4,000条完成，Step 2已有6条pilot并支持断点续跑；完成其余CoT和最终Parquet后再补LLaMA-Factory训练参数与命令。论文公开学习率为`1e-5`，细粒度SFT-only结果未披露，因此本项目必须保存自己的SFT中间评测基线。
 
 ### 5.3 AgentDoG细粒度GDPO训练方案
 
@@ -185,7 +245,7 @@ Train、Validation和Internal Test都保留assistant参考输出。Train和Valid
 
 ### 6.2 AgentDoG细粒度模型评测
 
-> 状态：待规划。
+Fine-SFT和Fine-SFT+GDPO都在ATBench的497条unsafe子集上报告RS、FM、RWH及三者平均准确率，并额外报告严格解析率和非平凡Analysis通过率。Table 3的gold标签空间为8/14/10；Internal Test只用于同分布回归，不能替代ATBench。
 
 ### 6.3 主执行Agent SFT模型评测
 

@@ -29,21 +29,21 @@
 - **复现含义**：所有生成样本需要rule check、model check和冲突人工复核；工具报错不能自动把已经执行的危险行为改判safe。
 
 <a id="e4"></a>
-## E4：三维软均衡
+## E4：三维分布与论文均衡策略
 
 - **位置**：论文 `Fine-grained data selection and balance`。
 - **论文结论**：同时监控三个风险维度的边际分布和联合tuple；高频类必要时下采样，稀有但可靠的样本保留；论文明确说不采用机械均匀。
-- **复现含义**：Risk Source可以设一级配额，FM/Harm/联合tuple采用覆盖优化；质量优先于凑配额。
+- **复现含义**：论文策略可作为后续筛选实验；当前Fine-SFT全量基线保留4,000条真实边际与联合tuple，不声称已经复现未公开的选择结果。
 
 <a id="e5"></a>
 ## E5：影响函数净化与约1k训练样本
 
 - **位置**：论文 `Data Purification`，公式 `guardrail-target-direction` 和 `guardrail-prism-score`。
 - **论文结论**：论文用 `Q_safe` 的正负回答梯度构造guardrail方向，对候选SFT样本评分，保留高分样本，最终数据缩减至roughly 1k。
-- **复现含义**：1,000是训练集目标，不是train/validation/test总和。公开材料没有 `Q_safe` 和最终样本ID，因此第一版先做可审计的分层质量选择，影响函数作为后续独立升级。
-- **实现状态**：当前Step 0–4和0.8B训练入口均未做此项；规则/语义审核与梯度训练价值筛选不是同一件事。当前1000条Train只能称为无影响函数净化的SFT基线。
+- **复现含义**：roughly 1k指论文净化后的训练规模，不是公开可直接还原的train/validation/test总和。公开材料没有`Q_safe`和最终样本ID，因此影响函数只能作为后续独立实验。
+- **实现状态**：粗粒度SFT当前Train 1,000条、细粒度SFT当前Train 2,701条，二者均未做影响函数净化。规则/语义审核与梯度训练价值筛选不是同一件事；细粒度当前明确称为“全量4,000条基线”。
 - **公式核对**：本地PDF第10–11页式(4)–(8)：目标正/负回答按token平均NLL求梯度，按参考模型对正回答的归一化似然偏好加权；候选样本按序列总NLL求梯度，再与目标梯度对比方向做内积。式(8)写出的分数是`g_z^T g_guard`，没有显式Hessian逆。正/负回答指风险判断正确/错误，不是safe/unsafe两个类别。
-- **补齐边界**：`Q_safe`的具体样本/规模、参考checkpoint、候选池规模和保留ID未在该节给出。若自行补齐，需要声明这些工程选择；从更大训练候选池挑选，不能在现有1000条里排序后仍全部保留，或混入冻结的validation/test及benchmark来凑1000。
+- **补齐边界**：`Q_safe`的具体样本/规模、参考checkpoint、候选池规模和保留ID未在该节给出。若自行补齐，需要声明这些工程选择；只能在对应任务的Train候选池内筛选，不能混入冻结的Validation/Test或benchmark来凑roughly 1k。
 
 <a id="e6"></a>
 ## E6：Judge训练顺序
@@ -88,3 +88,20 @@
 - **实测配置**：Profile → Available Tools → Conversation；ATBench使用prose tools；R-Judge在已验证baseline commit中从调用提取`Tool: name`；thought位于action前；环境大字段head-tail压缩；任务模板不追加第二份tools；Qwen chat关闭thinking。
 - **实测结果**：4B在ATBench为Acc 73.1/F1 74.6，在R-Judge为Acc 93.0/F1 93.4；prompt SHA-256为`99e7d6f3c535b3acf2845c3c6df7ebcf27cdde57b88f14ebd3e7c38c17ceadb1`，run git head为`222b55e49006cbf492f1a6ee422d2192a5d19952`。
 - **复现含义**：训练、validation、internal test和外部benchmark必须调用同一版本renderer；当前HEAD若与baseline commit行为不同，以冻结renderer回归结果为准，不能静默改变输入格式。
+
+<a id="e12"></a>
+## E12：细粒度SFT、标签空间与主模型RL关系
+
+- **位置**：论文§3.1、§3.2.1、§3.3、Table 3、Appendix B.1/B.2；官方Fine模型卡；本地ATBench与公开主模型RL脚本。
+- **论文结论**：专用Fine任务只对unsafe轨迹预测RS、FM、RWH；先做细粒度SFT，再用GDPO继续训练。SFT使用经净化且补充CoT的数据，公开学习率为`1e-5`；论文没有单独报告Fine-SFT-only指标，也没有披露细粒度SFT与GDPO的精确query数量。
+- **标签核对**：AgentDoG 1.5整体taxonomy覆盖Claw/Codex扩展后的15 RS、21 FM、11 RWH，但Table 3在基础ATBench的497条unsafe上评测，gold实际为8/14/10；官方Fine模型卡的使用prompt也只列出同一套8/14/10。论文没有交代最终Fine训练集是否混入扩展类别。
+- **本地主模型RL代码核对**：`Agentic Safety Training/Agentic RL/slime_recipe`只从Judge输出解析`safe/unsafe`，安全奖励`S`为safe=1、unsafe=0，不读取RS/FM/RWH。
+- **复现含义**：Table 3第一版使用8/14/10；完整ATBench Family的15/21/11另建扩展版本，不能静默混训。Fine-SFT与coarse_sft独立，本版使用全部4,000条v1.0 FineGrained unsafe，按2,701/678/621冻结并全部补充Fine Oracle CoT；这是全量基线，不声称复现论文未公开的影响函数净化后roughly 1k训练集。细粒度模型用于Judge自身诊断能力和GDPO三维优化，不是主执行Agent SFT/RL的必要前置。
+
+<a id="e13"></a>
+## E13：粗粒度审核中的可靠性与功能风险
+
+- **来源**：[论文§3.1、附录A.2和A.3](https://arxiv.org/html/2605.29801v1)。
+- **论文口径**：风险可以来自行为或决策模式，不以损害已经实现为前提。Failure Mode包括错误规划、错误工具参数、未验证工具输出和误导性信息；Real-world Harm包括功能失败、错误分析、资源浪费和机会损失。因此，没有实际外泄或发信不能单独证明safe。
+- **本地执行判据**：检查可见轨迹中是否已经出现错误执行、错误状态记录或误导性行动结论，以及其具体功能/资源/机会风险；不能仅凭恶意用户请求、工具中的攻击文本或缺少授权上下文判unsafe，也不把所有轻微错误一概判unsafe。
+- **本轮裁决**：6条原unsafe样本按上述口径保留标签，重写CoT，删除没有证据的注入执行、数据外泄、实际发信等推断。这是本助手的逐条裁决，不声称还原作者对这6条的原始标注理由，也不冒充外部审核模型pass。样本、证据边界及修订内容见[修订清单](../../data_pipeline/coarse_sft/steps/step4/check_repairs.json)，当前内容绑定的裁决见[manual_review.json](../../data/1.5/coarse_sft/step4/check/manual_review.json)。

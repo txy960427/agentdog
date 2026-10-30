@@ -62,7 +62,7 @@ def preflight(config, run_dir, requested):
     dataset_dir = ROOT / config["dataset_dir"]
     manifest = json.loads((dataset_dir.parent / "report.json").read_text(encoding="utf-8"))
     if manifest["status"] != "pass":
-        raise ValueError("Step 4数据尚未验收")
+        raise ValueError("所选数据变体尚未验收")
     data_keys = {f.name for f in fields(DataArguments)}
     data_args = DataArguments(**{k: v for k, v in config.items() if k in data_keys})
     data_args.dataset_dir = str(dataset_dir)
@@ -123,7 +123,8 @@ def preflight(config, run_dir, requested):
     lengths = [r["total_tokens"] for r in details]
     selected, recommended = choose_cutoff(lengths, requested)
     report = {"status": "pass" if max(lengths) <= selected else "failed", "records": len(details),
-        "model": config["model_name_or_path"], "selected_cutoff_len": selected, "recommended_cutoff_len": recommended,
+        "model": config["model_name_or_path"], "dataset_dir": config["dataset_dir"],
+        "selected_cutoff_len": selected, "recommended_cutoff_len": recommended,
         "selection_rule": "全部1500条完整训练序列的最大长度向上取整到256；只看长度，不使用test分数调参",
         "splits": {s: {"records": n, "prompt_tokens": summary([r['prompt_tokens'] for r in details if r['split'] == s]),
             "answer_tokens": summary([r['answer_tokens'] for r in details if r['split'] == s]),
@@ -156,6 +157,7 @@ def main():
     parser.add_argument("mode", choices=("check", "smoke", "train"), nargs="?", default="check")
     parser.add_argument("--model", help="底座模型ID或本地目录，默认读取train.yaml")
     parser.add_argument("--cutoff-len", type=int, default=0, help="0=自动选择；指定值不足时停止")
+    parser.add_argument("--dataset-variant", choices=("baseline", "step5"), default="baseline", help="选择原基线或长度去偏Train")
     parser.add_argument("--resume-from-checkpoint", help="正式训练时恢复的checkpoint目录")
     args = parser.parse_args()
     if args.cutoff_len < 0 or args.resume_from_checkpoint and args.mode != "train":
@@ -163,10 +165,14 @@ def main():
     os.chdir(ROOT)
     os.environ["USE_V1"] = "0"
     config = yaml.safe_load((HERE / "train.yaml").read_text(encoding="utf-8"))
+    config["dataset_dir"] = {
+        "baseline": "data/1.5/coarse_sft/step4/final",
+        "step5": "data/1.5/coarse_sft/step5/final",
+    }[args.dataset_variant]
     config["model_name_or_path"] = args.model or config["model_name_or_path"]
     if Path(config["model_name_or_path"]).expanduser().exists():
         config["model_name_or_path"] = str(Path(config["model_name_or_path"]).expanduser().resolve())
-    run_dir = HERE / "runs" / f"{datetime.now():%Y%m%d_%H%M%S_%f}_{args.mode}"
+    run_dir = HERE / "runs" / f"{datetime.now():%Y%m%d_%H%M%S_%f}_{args.dataset_variant}_{args.mode}"
     run_dir.mkdir(parents=True)
     print(f"Run: {run_dir}", flush=True)
     # 预检必须与下面的训练配置一致，不能临时绕过mask或自动切分检查。

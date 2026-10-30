@@ -50,6 +50,8 @@ ENV/
 !/data/README.md
 !/data/1.5/
 !/data/1.5/**
+# 可从Step 0重新构建的5100条CoT候选缓存，不提交远程仓库
+/data/1.5/coarse_sft/cot_pool/
 
 # Training / eval artifacts
 **/outputs/

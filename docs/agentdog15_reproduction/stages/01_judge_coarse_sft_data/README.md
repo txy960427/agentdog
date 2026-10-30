@@ -1,8 +1,12 @@
 # 阶段1：AgentDoG粗粒度SFT数据总设计
 
+![粗粒度二分类SFT数据构建路线](../../assets/coarse_sft_binary_data_pipeline_v3.png)
+
 > 当前状态（2026-10-29）：Step 0至Step 2已通过验收，Step 3已按400/100/100完成finalize。Step 4为pass，已导出全部1,500条Parquet：Train 1,000、Validation 250、Internal Test 250，各split的safe/unsafe均为1:1，待复核为0。35条冲突最终以33条定点修正和2条原输入双模型支持解决；最后6条修正后重新双模型盲判，12次全部为safe。原始响应和上游final保留，不替换parent、不改变gold或split；人工和模型修订来源分别记录。Teacher Prompt保持现有版本，不新增全量自动语义过滤；训练前需按目标tokenizer检查长度。
 
 ## 1. 最终要交给SFT训练器的数据
+
+2026-10-30内容审核补充：上述pass和待复核为0指生成/格式/标签流程。后续首审标出9条，2条定点修订并经模型重审pass，1条按项目口径判为审核误报；其余6条已对照论文裁决为unsafe并重写CoT，没有新增API调用。累计修订Train 6、Validation 2条，输入、gold和split不变。模型记录与本地裁决分别保存，综合未决0，不将本地结论冒充模型pass。详情见[CoT修订与审核](04_cot_and_sft_export.md#44-审定cot的定点修订)。
 
 Train、Validation和Internal Test最终都导出为Parquet，每行采用相同的`messages`格式并保留assistant参考答案。下面是完整字段结构示例；为便于阅读缩短了trajectory，实际user内容由冻结的[judge_eval/prompt.txt](../../../../judge_eval/prompt.txt)和统一renderer完整生成。
 
@@ -41,7 +45,7 @@ Train、Validation和Internal Test最终都导出为Parquet，每行采用相同
 
 三个split内部都保持safe/unsafe严格平衡。FineGrained记录保留RS、FM、RWH三个标签用于抽样、审计和未来候选复用；粗粒度训练只读取`coarse`，本设计不把这600条定义为细粒度阶段的完整训练集。
 
-## 3. 五步数据流水线
+## 3. 五步基线与一个实验变体
 
 ```text
 Step 0  统一解析两个来源、跨来源分组、采样和split冻结
@@ -58,9 +62,12 @@ Step 3  对Step 2逐条生成safe twin
 
 Step 4  为三个split生成CoT并导出messages
         → train.parquet / validation.parquet / test.parquet
+
+Step 5  可选的Train长度去偏替换实验
+        → replacement_manifest.jsonl（不覆盖Step 4基线）
 ```
 
-Step 0是唯一允许采样和分配split的阶段。Step 1和Step 2只按冻结清单物化canonical row，Step 3逐条继承parent，Step 4生成最终user prompt和assistant监督答案。
+Step 0是基线唯一允许采样和分配split的阶段。Step 1和Step 2只按冻结清单物化canonical row，Step 3逐条继承parent，Step 4生成最终user prompt和assistant监督答案。Step 5不是论文基线重建步骤，而是依据现有模型的长度误报诊断构造的受控Train变体；Validation/Test及Step 4文件保持不变。
 
 ## 4. Step 1至Step 3统一输出的canonical格式
 
@@ -157,9 +164,14 @@ data/
         │   ├── intermediate/
         │   ├── final/
         │   └── report.json
-        └── step4/                         # CoT生成和SFT导出
-            ├── intermediate/
+        ├── step4/                         # CoT生成和SFT导出（基线）
+        │   ├── intermediate/
+        │   ├── final/
+        │   └── report.json
+        └── step5/                         # 可选长度去偏实验
             ├── final/
+            │   └── replacement_manifest.jsonl
+            ├── cot/                       # 通用生成/审核脚本的独立数据目录
             └── report.json
 ```
 
@@ -174,7 +186,8 @@ data_pipeline/coarse_sft/
 3. [Step 2：按清单转换带工具unsafe](02_tool_unsafe.md)
 4. [Step 3：带工具safe twin生成](03_tool_safe.md)
 5. [Step 4：CoT生成与SFT导出](04_cot_and_sft_export.md)
-6. [Step 3 Safe Twin生成Prompt](prompts/safe_twin_generator.txt)
-7. [Step 3 Safe Twin检查Prompt](prompts/safe_twin_checker.txt)
+6. [Step 5：长度去偏Train变体](05_length_debias_variant.md)
+7. [Step 3 Safe Twin生成Prompt](prompts/safe_twin_generator.txt)
+8. [Step 3 Safe Twin检查Prompt](prompts/safe_twin_checker.txt)
 
 论文依据统一见[证据索引](../../evidence.md)。

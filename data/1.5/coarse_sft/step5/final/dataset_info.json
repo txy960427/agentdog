@@ -1,0 +1,20 @@
+{
+  "agentdog_train": {
+    "file_name": "train.parquet",
+    "formatting": "sharegpt",
+    "columns": {"messages": "messages"},
+    "tags": {"role_tag": "role", "content_tag": "content", "user_tag": "user", "assistant_tag": "assistant", "system_tag": "system"}
+  },
+  "agentdog_validation": {
+    "file_name": "validation.parquet",
+    "formatting": "sharegpt",
+    "columns": {"messages": "messages"},
+    "tags": {"role_tag": "role", "content_tag": "content", "user_tag": "user", "assistant_tag": "assistant", "system_tag": "system"}
+  },
+  "agentdog_test": {
+    "file_name": "test.parquet",
+    "formatting": "sharegpt",
+    "columns": {"messages": "messages"},
+    "tags": {"role_tag": "role", "content_tag": "content", "user_tag": "user", "assistant_tag": "assistant", "system_tag": "system"}
+  }
+}

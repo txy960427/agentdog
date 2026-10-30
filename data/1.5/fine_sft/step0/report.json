@@ -1,0 +1,306 @@
+{
+  "audit": {
+    "checks": 9,
+    "errors": [],
+    "status": "pass"
+  },
+  "created_at": "2026-10-30T01:51:53.619108+00:00",
+  "grouping": {
+    "cross_source_groups": 0,
+    "group_size_histogram": {
+      "1": 4000
+    },
+    "groups": 4000,
+    "largest_group": 1,
+    "multi_record_groups": 0
+  },
+  "outputs": {
+    "candidates": {
+      "records": 4000,
+      "sha256": "2294542aafff96a1e9906f58d955f23060974c09aa8baf4502eb3d95093dca2f"
+    },
+    "selection": {
+      "records": 4000,
+      "sha256": "8766e9f20ecc1896da39ab127a618dff5285b432b0d323888aac6999fc9a269e"
+    }
+  },
+  "sampling": {
+    "by_split": {
+      "test": {
+        "failure_mode": {
+          "Choosing Malicious Tool": 46,
+          "Failure to Validate Tool Outputs": 39,
+          "Flawed Planning or Reasoning": 50,
+          "Generation of Harmful/Offensive Content": 39,
+          "Generation of Malicious Executables": 34,
+          "Incorrect Tool Parameters": 41,
+          "Inefficient or Wasteful Execution": 40,
+          "Insecure Execution or Interaction": 42,
+          "Instruction for Harmful/Illegal Activity": 58,
+          "Procedural Deviation or Inaction": 43,
+          "Provide Inaccurate, Misleading, or Unverified Information": 46,
+          "Tool Misuse in Specific Context": 40,
+          "Unauthorized Information Disclosure": 45,
+          "Unconfirmed or Over-privileged Action": 58
+        },
+        "records": 621,
+        "risk_consequence": {
+          "Fairness, Equity, and Allocative Harm": 56,
+          "Financial & Economic Harm": 67,
+          "Functional & Opportunity Harm": 55,
+          "Info-ecosystem & Societal Harm": 87,
+          "Physical & Health Harm": 56,
+          "Privacy & Confidentiality Harm": 58,
+          "Psychological & Emotional Harm": 74,
+          "Public Service & Resource Harm": 45,
+          "Reputational & Interpersonal Harm": 56,
+          "Security & System Integrity Harm": 67
+        },
+        "risk_source": {
+          "Corrupted Tool Feedback": 89,
+          "Direct Prompt Injection": 98,
+          "Indirect Prompt Injection": 52,
+          "Inherent Agent/LLM Failures": 46,
+          "Malicious Tool Execution": 103,
+          "Malicious User Instruction or Jailbreak": 97,
+          "Tool Description Injection": 55,
+          "Unreliable or Mis-information": 81
+        },
+        "structure": {
+          "action_format": {
+            "json": 621
+          },
+          "available_tool_count_bin": {
+            "2-3": 37,
+            "4-6": 583,
+            "7+": 1
+          },
+          "event_bin": {
+            "05-08": 37,
+            "09-16": 584
+          },
+          "has_duplicate_tool_name": {
+            "false": 607,
+            "true": 14
+          },
+          "has_environment_error": {
+            "false": 595,
+            "true": 26
+          },
+          "has_risk_structure": {
+            "false": 542,
+            "true": 79
+          },
+          "has_schema_warning": {
+            "false": 572,
+            "true": 49
+          },
+          "has_trailing_complete": {
+            "true": 621
+          },
+          "length_quartile": {
+            "0": 150,
+            "1": 154,
+            "2": 146,
+            "3": 171
+          }
+        },
+        "unique_groups": 621,
+        "unique_triples": 460
+      },
+      "train": {
+        "failure_mode": {
+          "Choosing Malicious Tool": 202,
+          "Failure to Validate Tool Outputs": 194,
+          "Flawed Planning or Reasoning": 197,
+          "Generation of Harmful/Offensive Content": 197,
+          "Generation of Malicious Executables": 159,
+          "Incorrect Tool Parameters": 182,
+          "Inefficient or Wasteful Execution": 167,
+          "Insecure Execution or Interaction": 169,
+          "Instruction for Harmful/Illegal Activity": 236,
+          "Procedural Deviation or Inaction": 204,
+          "Provide Inaccurate, Misleading, or Unverified Information": 178,
+          "Tool Misuse in Specific Context": 211,
+          "Unauthorized Information Disclosure": 198,
+          "Unconfirmed or Over-privileged Action": 207
+        },
+        "records": 2701,
+        "risk_consequence": {
+          "Fairness, Equity, and Allocative Harm": 245,
+          "Financial & Economic Harm": 320,
+          "Functional & Opportunity Harm": 230,
+          "Info-ecosystem & Societal Harm": 328,
+          "Physical & Health Harm": 267,
+          "Privacy & Confidentiality Harm": 272,
+          "Psychological & Emotional Harm": 275,
+          "Public Service & Resource Harm": 265,
+          "Reputational & Interpersonal Harm": 255,
+          "Security & System Integrity Harm": 244
+        },
+        "risk_source": {
+          "Corrupted Tool Feedback": 331,
+          "Direct Prompt Injection": 393,
+          "Indirect Prompt Injection": 235,
+          "Inherent Agent/LLM Failures": 213,
+          "Malicious Tool Execution": 498,
+          "Malicious User Instruction or Jailbreak": 443,
+          "Tool Description Injection": 248,
+          "Unreliable or Mis-information": 340
+        },
+        "structure": {
+          "action_format": {
+            "json": 2701
+          },
+          "available_tool_count_bin": {
+            "2-3": 193,
+            "4-6": 2508
+          },
+          "event_bin": {
+            "05-08": 193,
+            "09-16": 2508
+          },
+          "has_duplicate_tool_name": {
+            "false": 2626,
+            "true": 75
+          },
+          "has_environment_error": {
+            "false": 2565,
+            "true": 136
+          },
+          "has_risk_structure": {
+            "false": 2273,
+            "true": 428
+          },
+          "has_schema_warning": {
+            "false": 2451,
+            "true": 250
+          },
+          "has_trailing_complete": {
+            "true": 2701
+          },
+          "length_quartile": {
+            "0": 684,
+            "1": 670,
+            "2": 679,
+            "3": 668
+          }
+        },
+        "unique_groups": 2701,
+        "unique_triples": 971
+      },
+      "validation": {
+        "failure_mode": {
+          "Choosing Malicious Tool": 68,
+          "Failure to Validate Tool Outputs": 43,
+          "Flawed Planning or Reasoning": 60,
+          "Generation of Harmful/Offensive Content": 44,
+          "Generation of Malicious Executables": 37,
+          "Incorrect Tool Parameters": 39,
+          "Inefficient or Wasteful Execution": 29,
+          "Insecure Execution or Interaction": 53,
+          "Instruction for Harmful/Illegal Activity": 62,
+          "Procedural Deviation or Inaction": 52,
+          "Provide Inaccurate, Misleading, or Unverified Information": 51,
+          "Tool Misuse in Specific Context": 51,
+          "Unauthorized Information Disclosure": 44,
+          "Unconfirmed or Over-privileged Action": 45
+        },
+        "records": 678,
+        "risk_consequence": {
+          "Fairness, Equity, and Allocative Harm": 61,
+          "Financial & Economic Harm": 76,
+          "Functional & Opportunity Harm": 73,
+          "Info-ecosystem & Societal Harm": 69,
+          "Physical & Health Harm": 66,
+          "Privacy & Confidentiality Harm": 67,
+          "Psychological & Emotional Harm": 63,
+          "Public Service & Resource Harm": 58,
+          "Reputational & Interpersonal Harm": 70,
+          "Security & System Integrity Harm": 75
+        },
+        "risk_source": {
+          "Corrupted Tool Feedback": 91,
+          "Direct Prompt Injection": 112,
+          "Indirect Prompt Injection": 59,
+          "Inherent Agent/LLM Failures": 51,
+          "Malicious Tool Execution": 128,
+          "Malicious User Instruction or Jailbreak": 116,
+          "Tool Description Injection": 50,
+          "Unreliable or Mis-information": 71
+        },
+        "structure": {
+          "action_format": {
+            "json": 678
+          },
+          "available_tool_count_bin": {
+            "2-3": 47,
+            "4-6": 631
+          },
+          "event_bin": {
+            "05-08": 47,
+            "09-16": 631
+          },
+          "has_duplicate_tool_name": {
+            "false": 661,
+            "true": 17
+          },
+          "has_environment_error": {
+            "false": 647,
+            "true": 31
+          },
+          "has_risk_structure": {
+            "false": 574,
+            "true": 104
+          },
+          "has_schema_warning": {
+            "false": 607,
+            "true": 71
+          },
+          "has_trailing_complete": {
+            "true": 678
+          },
+          "length_quartile": {
+            "0": 169,
+            "1": 175,
+            "2": 176,
+            "3": 158
+          }
+        },
+        "unique_groups": 678,
+        "unique_triples": 483
+      }
+    },
+    "group_before_split": true,
+    "policy": "use all 4000 unique records; no label resampling",
+    "quotas": {
+      "test": 621,
+      "train": 2701,
+      "validation": 678
+    },
+    "seed": 42
+  },
+  "source": {
+    "duplicates": 0,
+    "failure_mode_classes": 14,
+    "path": "D:\\agentdog\\data\\1.0\\source\\AgentDoG1.0-Training-Data\\AgentDoG-FineGrainedTaxonomy\\train.json",
+    "physical_records": 4000,
+    "quarantine": 0,
+    "real_world_harm_classes": 10,
+    "risk_sources": {
+      "Corrupted Tool Feedback": 511,
+      "Direct Prompt Injection": 603,
+      "Indirect Prompt Injection": 346,
+      "Inherent Agent/LLM Failures": 310,
+      "Malicious Tool Execution": 729,
+      "Malicious User Instruction or Jailbreak": 656,
+      "Tool Description Injection": 353,
+      "Unreliable or Mis-information": 492
+    },
+    "sha256": "0ee0356677c3ffe5f5c83db62191efc7c07a6a8ac1d20e88a326c53faeb8ff6c",
+    "triples": 1044,
+    "unique_records": 4000
+  },
+  "stage": "fine_sft/step0",
+  "version": "2.0.0"
+}

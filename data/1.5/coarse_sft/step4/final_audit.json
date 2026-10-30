@@ -2,7 +2,7 @@
   "status": "pass",
   "records": 1500,
   "errors": [],
-  "manifest_files": 21,
+  "manifest_files": 22,
   "reconstructed_parents": 900,
   "components": {
     "binary_safe": 150,
@@ -200,10 +200,11 @@
   ],
   "cot_sources": {
     "teacher_reused_after_manual_input_review": 36,
-    "api_generation": 1421,
+    "api_generation": 1414,
     "manual_cot_revision": 8,
+    "manual_cot_revision_after_check": 8,
     "manual_trajectory_and_cot_revision": 27,
-    "independent_review_consensus": 8
+    "independent_review_consensus": 7
   },
   "api_calls": 0,
   "scope": "全量确定性核验；不等于1500条均经独立人工语义重标。通用拒绝句跨split复用已在Step 0记录，完整轨迹和工具不同。目标tokenizer长度另查。"
