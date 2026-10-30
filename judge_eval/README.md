@@ -227,7 +227,7 @@ ENFORCE_EAGER=1
 
 - **布局**：`=== Agent Profile ===` → `=== Available Tools ===` → `=== Conversation History ===`
 - **ATBench 工具**：`Tool: / Description: / Parameters:` prose；agent 含 `[THOUGHT]` + 规范化 `[ACTION]`；环境 HTML 去标签、大字段 head+tail
-- **R-Judge 工具**：数据集无 schema，Available Tools 固定写 `None`（勿 omit 整块）
+- **R-Judge 工具**：数据集无 schema，与 coarse SFT 一致：写 `Full tool definitions were not provided in this record.`，若轨迹中有实际调用再追加 `Observed tools...`（勿 omit 整块，勿写 `None`/`[]`）
 - **入口**：`build_prompt_fields(benchmark, row, task="coarse")` → `render_prompt(prompt.txt, …)`
 
 改组装后先用 `--dry-run` 看 `input_preview.jsonl`，不加载模型。

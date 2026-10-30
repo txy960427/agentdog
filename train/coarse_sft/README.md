@@ -38,9 +38,9 @@ bash train/coarse_sft/run.sh train
 
 两个命令都会重新预检当前模型和数据。`smoke`只做5个优化步骤，梯度累积为1，包含一次验证和保存；采用按长度分组，让长样本尽早暴露显存问题。`train`按`train.yaml`完整训练，1000条train和250条validation，250条test只做编码/长度检查，不参与梯度或checkpoint评分。
 
-模型起点是Qwen3.5底座；语言部分全参SFT，视觉模块冻结。学习率`1e-5`来自项目[论文依据E6](../../docs/agentdog15_reproduction/evidence.md#e6)。3 epoch、batch size 1、梯度累积16、warmup 0.1是当前工程起跑值，不声称为论文完整超参。默认BF16、梯度检查点、SDPA、不开packing；每epoch验证并保存，用验证loss选择checkpoint，benchmark仍通过`judge_eval`评测。
+模型起点是Qwen3.5底座；语言部分全参SFT，视觉模块冻结。学习率`1e-5`来自项目[论文依据E6](../../docs/agentdog15_reproduction/evidence.md#e6)。3 epoch、batch size 1、梯度累积16、warmup 0.1是当前工程起跑值，不声称为论文完整超参。默认BF16、梯度检查点、SDPA、不开packing；每10 step保存权重（前50 step不落盘），每30 step做一次验证loss；benchmark仍通过`judge_eval`评测。
 
-0.8B配置面向先前计划的4090 24GB起跑，但实际显存受最长样本、PyTorch/Transformers和内核影响。若试训OOM，不要缩小cutoff后直接截断数据；先在同一配置下选择更充足的GPU资源，或再验证Liger/优化器卸载方案。
+0.8B配置按单卡 **RTX 4090 48GB** 实测对齐：`cutoff≈10k` 时 `bs=1` 峰值约 37GB，`bs=2` 会 OOM；因此保持 `per_device_train_batch_size=1`、`gradient_accumulation_steps=16`（有效 batch=16），优化器为 `adamw_torch_fused`。瓶颈是最长轨迹激活，不是模型参数。若试训 OOM，不要缩小 cutoff 后直接截断数据；先确认未改大 batch，或再验证 Liger / 优化器卸载方案。
 
 ## 数据直接用Parquet
 

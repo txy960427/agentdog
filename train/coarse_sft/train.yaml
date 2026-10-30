@@ -1,5 +1,11 @@
-# 0.8B语言部分全参SFT；在GPU机器从项目根目录通过run.sh启动。
-model_name_or_path: Qwen/Qwen3.5-0.8B
+# 0.8B语言部分全参SFT；面向单卡 RTX 4090 48GB（实测）。
+# 显存探测（bf16 + gradient checkpointing + SDPA，cutoff≈10k）：
+#   seq=10496 bs=1 ≈37GB OK；bs=2 OOM
+#   seq=8192  bs=1 ≈29GB OK；bs=2 OOM
+#   seq=5120  bs=2 ≈36GB OK；bs=4 OOM
+# 数据最长约10295 token（p95≈5.3k）；bs>1 时同批长样本会顶满显存，
+# 因此 train/eval batch 必须保持 1；有效 batch = 1×16 = 16。
+model_name_or_path: model/Qwen3.5-0.8B
 trust_remote_code: false
 use_fast_tokenizer: true
 flash_attn: sdpa
@@ -9,6 +15,8 @@ stage: sft
 do_train: true
 do_eval: true
 finetuning_type: full
+# 默认会把可训练参数升到 fp32，长序列上 48GB 会在 backward 真 OOM；纯 bf16 保留半精度权重。
+pure_bf16: true
 freeze_vision_tower: true
 freeze_multi_modal_projector: true
 freeze_language_model: false
@@ -25,11 +33,11 @@ mask_history: false
 packing: false
 # 当前官方tokenizer对照值；run.py仍按实际GPU环境重检并覆盖，长度不足时停止。
 cutoff_len: 10496
-preprocessing_num_workers: 1
-dataloader_num_workers: 2
+preprocessing_num_workers: 4
+dataloader_num_workers: 4
 overwrite_cache: true
 
-# 学习率沿用论文公开值；epoch/batch/warmup为本次工程起跑配置。
+# 学习率沿用论文公开值；epoch/warmup为工程起跑配置。
 learning_rate: 1.0e-5
 num_train_epochs: 3.0
 per_device_train_batch_size: 1
@@ -40,24 +48,28 @@ disable_gradient_checkpointing: false
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 max_grad_norm: 1.0
-optim: adamw_torch
+optim: adamw_torch_fused
 bf16: true
 seed: 42
 data_seed: 42
-group_by_length: true
+# 当前 transformers/LF 已移除 group_by_length、save_safetensors；保存默认仍用 safetensors。
 
-# 只算验证loss，避免保存整段词表logits；benchmark继续使用judge_eval。
+# 只算验证loss；checkpoint 只存权重便于多点评测（不含优化器，约 1.6GB/个）。
+# eval 每 30 step；权重仍每 10 step 存（前 N step 由 save_after_steps 控制）。
+# save_after_steps 由本目录入口消费（非 HF 字段）：前 N 个 step 不落盘，之后仍按 save_steps。
 prediction_loss_only: true
-eval_strategy: epoch
-save_strategy: epoch
-save_total_limit: 2
-load_best_model_at_end: true
+eval_strategy: steps
+eval_steps: 30
+save_strategy: steps
+save_steps: 10
+save_after_steps: 50
+save_total_limit: 20
+load_best_model_at_end: false
 metric_for_best_model: eval_loss
 greater_is_better: false
 logging_steps: 1
 report_to: none
-save_only_model: false
-save_safetensors: true
+save_only_model: true
 resume_from_checkpoint: null
 plot_loss: true
 # 实际输出由入口改为本次runs/<时间>/model。

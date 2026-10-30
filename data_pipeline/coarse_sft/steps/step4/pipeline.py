@@ -17,7 +17,7 @@ from pathlib import Path
 from steps.step0.source import PROJECT_ROOT, PipelineError, sha256_file, sha256_text, stable_json
 from steps.step3.client import OpenAICompatibleClient
 from steps.step3.pipeline import read_jsonl, write_jsonl
-from steps.step4.inputs import prepare_row, unknown_tools_text
+from steps.step4.inputs import prepare_row
 
 sys.path.insert(0, str(PROJECT_ROOT))
 from judge_eval import prompt_builder as renderer  # noqa: E402
@@ -94,7 +94,7 @@ def render_inputs(row: dict, teacher_template: str, student_template: str) -> tu
     profile = header.removeprefix("=== Agent Profile ===").strip()
     tools = renderer.format_tools_prose_for_judge(renderer.visible_tools(row["tools"]))
     if not tools:
-        tools = unknown_tools_text(row["trajectory"])
+        tools = renderer.unknown_tools_text(row["trajectory"])
     teacher = teacher_template.format(profile=profile, tool_list_text=tools, trajectory=history.strip())
     student = student_template.format(trajectory=renderer.insert_available_tools_after_profile(conversation, tools))
     return teacher, student

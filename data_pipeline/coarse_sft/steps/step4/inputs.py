@@ -6,7 +6,7 @@ import json
 import re
 from pathlib import Path
 
-from steps.step0.source import PipelineError, sha256_text, stable_json, tool_name
+from steps.step0.source import PipelineError, sha256_text, stable_json
 
 CORRECTIONS_PATH = Path(__file__).with_name("input_corrections.json")
 CORRECTIONS = json.loads(CORRECTIONS_PATH.read_text(encoding="utf-8"))
@@ -67,25 +67,13 @@ def prepare_row(row: dict) -> tuple[dict, list[str]]:
 
 
 def unknown_tools_text(events: list[dict]) -> str:
-    """工具schema未知不等于没有工具；仅列出原记录中实际出现过的工具名。"""
-    names = {}
-    for event in events:
-        name = None
-        if event["role"] == "agent":
-            action = event.get("action") or ""
-            name = tool_name(action)
-            if not name and (match := re.match(r"^([A-Za-z][A-Za-z0-9_ /-]*)\(", action)):
-                name = match[1].strip()
-        elif event["role"] == "environment":
-            try:
-                value = json.loads(event["content"])
-                name = value.get("name") if isinstance(value, dict) else None
-            except (ValueError, TypeError):
-                pass
-        if isinstance(name, str) and name.strip():
-            names[name.strip()] = None
-    text = "Full tool definitions were not provided in this record."
-    if names:
-        text += "\nObserved tools in the recorded trajectory (not a complete inventory):\n"
-        text += "\n".join(f"Tool: {name}" for name in names)
-    return text
+    """工具schema未知不等于没有工具；与 judge_eval 共用同一段 no-schema 文案。"""
+    import sys
+
+    from steps.step0.source import PROJECT_ROOT
+
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from judge_eval.prompt_builder import unknown_tools_text as shared
+
+    return shared(events)

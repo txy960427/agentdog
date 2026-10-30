@@ -119,8 +119,10 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual(config["val_size"], 0)
         for key in ("train_on_prompt", "packing", "enable_thinking", "mask_history"):
             self.assertIs(config[key], False)
-        self.assertEqual(config["save_strategy"], config["eval_strategy"])
-        self.assertEqual(config["eval_strategy"], "epoch")
+        self.assertEqual(config["eval_strategy"], "steps")
+        self.assertEqual(config["save_strategy"], "steps")
+        self.assertEqual(config["eval_steps"], 30)
+        self.assertEqual(config["save_steps"], 10)
         self.assertEqual(config["metric_for_best_model"], "eval_loss")
         self.assertEqual(config["learning_rate"], 1e-5)
         self.assertEqual(config["finetuning_type"], "full")

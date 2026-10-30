@@ -100,8 +100,17 @@ def preflight(config, run_dir, requested):
             encoded = encoder._encode_data_example(converted["_prompt"], converted["_response"], "", "", [], [], [])
             # 此私有API返回(input_ids, labels)，与框架训练时的同一路径完全一致。
             encoded = {"input_ids": encoded[0], "labels": encoded[1]}
-            official = tokenizer.apply_chat_template(row["messages"][:1], chat_template=official_template,
-                tokenize=True, add_generation_prompt=True, enable_thinking=False)
+            # transformers>=5 默认可能返回 BatchEncoding；预检需要纯 token id 列表。
+            official = tokenizer.apply_chat_template(
+                row["messages"][:1],
+                chat_template=official_template,
+                tokenize=True,
+                add_generation_prompt=True,
+                enable_thinking=False,
+                return_dict=False,
+            )
+            if not isinstance(official, list):
+                official = list(official)
             validate_encoding(row, encoded, source, target, official)
             expected_target = tokenizer.encode(row["messages"][1]["content"] + "<|im_end|>\n", add_special_tokens=False)
             if target != expected_target:
@@ -177,20 +186,36 @@ def main():
         config["resume_from_checkpoint"] = str(Path(args.resume_from_checkpoint).expanduser().resolve())
     if args.mode == "smoke":
         config.update(max_steps=5, gradient_accumulation_steps=1, eval_strategy="steps", save_strategy="steps",
-                      eval_steps=5, save_steps=5, save_total_limit=1)
+                      eval_steps=5, save_steps=5, save_total_limit=1, save_after_steps=0)
+    # save_after_steps 仅本入口使用，需从 LF/HF 配置中剥离，经环境变量传给 lf_entry。
+    save_after_steps = int(config.pop("save_after_steps", 0) or 0)
+    if save_after_steps < 0:
+        raise ValueError("save_after_steps 不能为负")
     config_path = run_dir / "train.yaml"
     config_path.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8", newline="\n")
     if args.mode == "check":
         print("仅预检，未加载模型权重、未启动训练。")
         return
     report["training_status"] = "running"
+    report["save_after_steps"] = save_after_steps
     report_path = run_dir / "report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    # 使用相同Python调用官方run_exp；子进程也先安装相同的模板适配，checkpoint保留优化器。
+    if save_after_steps:
+        print(f"前 {save_after_steps} 个 step 不保存 checkpoint；之后仍按 save_steps 落盘。", flush=True)
+    # 使用相同Python调用官方run_exp；子进程也先安装相同的模板适配。
+    child_env = os.environ.copy()
+    child_env["SAVE_AFTER_STEPS"] = str(save_after_steps)
     with (run_dir / "train.log").open("w", encoding="utf-8", newline="\n") as log:
         try:
-            child = subprocess.Popen([sys.executable, "-u", str(HERE / "lf_entry.py"), str(config_path)], stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+            child = subprocess.Popen(
+                [sys.executable, "-u", str(HERE / "lf_entry.py"), str(config_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=child_env,
+            )
         except OSError as error:
             report.update(training_status="launch_failed", error=str(error))
             report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")

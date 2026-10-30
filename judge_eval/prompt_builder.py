@@ -3,7 +3,7 @@
 
 Coarse (safe/unsafe): ``prompt.txt`` only has ``{trajectory}``. Tools are
 embedded as Profile → Available Tools → Conversation (prose schemas for
-ATBench; literal ``None`` for R-Judge).
+ATBench; no-schema fallback text for BinarySafety / R-Judge).
 
 Fine (ATBench unsafe): ``prompt_finegrained.txt`` also has ``{tools_json}``.
 Schemas go in that slot (JSON); trajectory has no tool block; agent turns use
@@ -185,6 +185,9 @@ def format_tools_prose_for_judge(tools: Any) -> str:
     return "\n".join(chunks).rstrip()
 
 
+_TOOL_NAME = r"[A-Za-z][A-Za-z0-9_]*"
+
+
 def insert_available_tools_after_profile(trajectory: str, tool_text: str) -> str:
     """P1 layout: Agent Profile → Available Tools → Conversation History."""
     tool_text = (tool_text or "").strip()
@@ -200,6 +203,83 @@ def insert_available_tools_after_profile(trajectory: str, tool_text: str) -> str
         return "\n\n".join(parts)
     # No profile/conversation split (fallback): keep tools after any leading profile-like head.
     return f"{trajectory.rstrip()}\n\n{tools_block}"
+
+
+def _observed_tool_name(action: str) -> str | None:
+    """Best-effort tool name from a raw agent action string (no invented schema)."""
+    text = action.strip()
+    if not text or text.startswith("Complete"):
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        name = parsed.get("name")
+        if isinstance(name, str) and name.strip() and name.strip() != "Complete":
+            return name.strip()
+        if len(parsed) == 1:
+            only = next(iter(parsed))
+            if (
+                isinstance(only, str)
+                and only.strip()
+                and only.strip() != "Complete"
+                and isinstance(parsed[only], (dict, list))
+            ):
+                return only.strip()
+    match = re.match(rf"^({_TOOL_NAME})\s*(?:\:\s*[\{{[]|\{{)", text, re.S)
+    if match and match.group(1) != "Complete":
+        return match.group(1)
+    match = re.match(r"^([A-Za-z][A-Za-z0-9_ /-]*)\(", text)
+    if match and match.group(1).strip() != "Complete":
+        return match.group(1).strip()
+    return None
+
+
+def unknown_tools_text(events: list[dict[str, Any]]) -> str:
+    """No-schema Available Tools text used by coarse SFT and R-Judge eval.
+
+    Schema missing ≠ no tools. List only names observed in the trajectory;
+    never invent descriptions or parameters.
+    """
+    names: dict[str, None] = {}
+    for event in events:
+        name = None
+        role = event.get("role")
+        if role == "agent":
+            action = event.get("action") or ""
+            if isinstance(action, str):
+                name = _observed_tool_name(action)
+        elif role == "environment":
+            content = event.get("content")
+            if isinstance(content, str):
+                try:
+                    value = json.loads(content)
+                except (ValueError, TypeError, json.JSONDecodeError):
+                    value = None
+                if isinstance(value, dict):
+                    raw = value.get("name")
+                    if isinstance(raw, str) and raw.strip():
+                        name = raw.strip()
+        if isinstance(name, str) and name.strip():
+            names[name.strip()] = None
+    text = "Full tool definitions were not provided in this record."
+    if names:
+        text += "\nObserved tools in the recorded trajectory (not a complete inventory):\n"
+        text += "\n".join(f"Tool: {name}" for name in names)
+    return text
+
+
+def row_events(row: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten canonical ``trajectory`` or ATBench/R-Judge ``contents`` rounds."""
+    trajectory = row.get("trajectory")
+    if isinstance(trajectory, list):
+        return [event for event in trajectory if isinstance(event, dict)]
+    events: list[dict[str, Any]] = []
+    for round_data in row.get("contents") or []:
+        if isinstance(round_data, list):
+            events.extend(event for event in round_data if isinstance(event, dict))
+    return events
 
 
 def _atbench_reply(text: str) -> str:
@@ -340,9 +420,6 @@ def _atbench_agent_fields(turn: dict[str, Any]) -> list[str]:
         return fields
     fields.append(f"[ACTION]: {text}")
     return fields
-
-
-_TOOL_NAME = r"[A-Za-z][A-Za-z0-9_]*"
 
 
 def _load_loose_object(raw: str) -> Any:
@@ -536,8 +613,8 @@ def build_prompt_fields(
 
     Fine (ATBench only): JSON schemas in ``tool_list_text``; traj has no tool block.
 
-    R-Judge has no tool schema in the dataset; keep a literal ``None`` under
-    Available Tools.
+    When tool schemas are missing (R-Judge; empty ATBench ``tool_used``), use the
+    same no-schema text as coarse SFT: ``unknown_tools_text``.
     """
     if task not in {"coarse", "fine"}:
         raise ValueError(f"Unsupported task: {task}")
@@ -551,10 +628,13 @@ def build_prompt_fields(
             return PromptFields(traj, json_text(tools))
         traj = format_conversation(row, raw_actions=False)
         prose = format_tools_prose_for_judge(tools)
+        if not prose:
+            prose = unknown_tools_text(row_events(row))
         return PromptFields(insert_available_tools_after_profile(traj, prose), "")
     if benchmark == "rjudge":
         traj = format_conversation(row, rjudge=True)
-        return PromptFields(insert_available_tools_after_profile(traj, "[]"), "")
+        tools = unknown_tools_text(row_events(row))
+        return PromptFields(insert_available_tools_after_profile(traj, tools), "")
     raise ValueError(f"Unsupported benchmark: {benchmark}")
 
 
